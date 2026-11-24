@@ -1,0 +1,12 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "yard_md"
+
+abort "usage: yard-md <output dir>" unless ARGV.size == 1
+
+begin
+  exit YardMd::Bundle.new(ARGV.first).document
+rescue Bundler::BundlerError => error
+  abort "yard-md: #{error.message}"
+end
