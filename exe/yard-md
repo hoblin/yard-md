@@ -9,25 +9,21 @@ parser = OptionParser.new(<<~HELP)
 
   Run in a project. Documents every gem its bundle resolves on this platform
   as Markdown, each into <output dir>/<gem>-<version>/: a page per class and
-  module, the README and the files its .yardopts names, and its doc/, docs/
-  and example directories. A gem whose directory exists is skipped, so the
-  output directory is a cache several projects can share.
+  module, the README and the files its .yardopts names, and its doc/, docs/,
+  example(s)/ and sample(s)/ directories. A gem whose directory exists is
+  skipped, so the output directory is a cache several projects can share.
 
   Prints each gem it documents. A gem it cannot document is reported on stderr
   and the rest go on; the exit status says whether every gem is documented.
+
+  Options: -h, --help shows this; -v, --version prints the version.
 HELP
 parser.version = YardMd::VERSION
 
 begin
   arguments = parser.parse(ARGV)
-rescue OptionParser::ParseError => error
-  abort "yard-md: #{error.message}"
-end
-
-abort parser.help unless arguments.size == 1
-
-begin
+  abort parser.help unless arguments.size == 1
   exit YardMd::Bundle.new(arguments.first).document
-rescue Bundler::BundlerError => error
-  abort "yard-md: #{error.message}"
+rescue OptionParser::ParseError, Bundler::BundlerError
+  parser.abort
 end

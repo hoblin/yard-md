@@ -56,18 +56,14 @@ RSpec.describe "exe/yard-md" do
     expect(err).to start_with("yard-md: ").and include("absent")
   end
 
-  describe "--help" do
-    it "says what it does, takes and writes, and exits without running, even outside a project" do
-      outside = File.dirname(@project)
+  it "says what it does, takes and writes on --help and -h, and runs nothing, in a project or outside one" do
+    [@project, File.dirname(@project)].product(%w[--help -h]).each do |dir, flag|
+      out, err, status = nil
 
-      %w[--help -h].each do |flag|
-        out, err, status = yard_md(flag, chdir: outside)
-
-        expect(status).to be_success, err
-        expect(out).to start_with("Usage: yard-md <output dir>\n")
-          .and include("<output dir>/<gem>-<version>/", ".yardopts", "skipped", "stderr", "exit status")
-        expect(Dir.children(outside)).to contain_exactly("project", "sample", "terse")
-      end
+      expect { out, err, status = yard_md(flag, chdir: dir) }.not_to change { Dir.children(dir) }, "#{flag} in #{dir}"
+      expect(status).to be_success, "#{flag} in #{dir}: #{err}"
+      expect(out).to start_with("Usage: yard-md <output dir>\n")
+        .and include("<output dir>/<gem>-<version>/", ".yardopts", "skipped", "stderr", "exit status", "--version")
     end
   end
 
@@ -79,18 +75,20 @@ RSpec.describe "exe/yard-md" do
   end
 
   it "rejects an unknown option rather than taking it for the output directory" do
-    _, err, status = yard_md("-x")
+    _, err, status = nil
 
+    expect { _, err, status = yard_md("-x") }.not_to change { Dir.children(@project) }
     expect(status).not_to be_success
     expect(err).to eq("yard-md: invalid option: -x\n")
-    expect(Dir.children(@project)).to eq(["Gemfile"])
   end
 
-  it "answers a wrong number of arguments with its help" do
+  it "answers a wrong number of arguments with its help, and runs nothing" do
     [[], %w[one two]].each do |args|
-      _, err, status = yard_md(*args)
+      out, err, status = nil
 
-      expect(status).not_to be_success
+      expect { out, err, status = yard_md(*args) }.not_to change { Dir.children(@project) }, args.inspect
+      expect(status).not_to be_success, args.inspect
+      expect(out).to be_empty
       expect(err).to start_with("Usage: yard-md <output dir>\n")
     end
   end
