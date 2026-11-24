@@ -12,5 +12,9 @@
 #   ```ruby
 #   options = {count: 2}
 #   ```
+#
+# ~~~yaml
+# :title: {Thing} <b>kept</b>
+# ~~~
 class Sample::Notes
 end

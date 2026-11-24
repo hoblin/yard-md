@@ -83,13 +83,16 @@ RSpec.describe YardMd::GemDocs do
           ```ruby
           options = {count: 2}
           ```
+
+        ~~~yaml
+        :title: {Thing} <b>kept</b>
+        ~~~
       MARKDOWN
     end
 
-    it "drops RDoc directives" do
+    it "drops RDoc directives from prose" do
       expect(page("Sample/Notes.md")).not_to include(":markup:")
     end
-
     it "heads a page without the implicit Object superclass" do
       expect(page("Sample/Empty/Inner.md")).to start_with("# class Sample::Empty::Inner\n")
     end
@@ -99,13 +102,15 @@ RSpec.describe YardMd::GemDocs do
         .and include("### VERSION = \"0.1.0\"")
     end
 
-    it "lists attributes once, with their access" do
+    it "lists attributes once, with their access and public aliases" do
       expect(page("Sample/Widget.md")).to include(<<~MARKDOWN)
         ## Instance attributes
 
         ### #color
 
         Returns: `Symbol` — the widget's color
+
+        Also known as: `hue`
 
         ### #finish (write-only)
 
@@ -184,7 +189,7 @@ RSpec.describe YardMd::GemDocs do
     end
 
     it "leaves out the API that is not public" do
-      expect(page("Sample/Widget.md")).not_to match(/internal|hidden|compare|secret|repaint\(/)
+      expect(page("Sample/Widget.md")).not_to match(/internal|hidden|compare|secret|daub|repaint\(/)
       expect(written).not_to include("Sample/Internal.md")
     end
   end

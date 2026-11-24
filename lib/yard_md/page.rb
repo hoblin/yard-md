@@ -59,7 +59,7 @@ module YardMd
         elsif reader then " (read-only)"
         else " (write-only)"
         end
-        ["### #{SCOPES[scope]}#{name}#{access}", docs(reader || writer, 3)].reject(&:empty?).join("\n\n")
+        ["### #{SCOPES[scope]}#{name}#{access}", docs(reader || writer, 3), aliases([reader, writer].compact)].compact.reject(&:empty?).join("\n\n")
       end
       section("#{scope.capitalize} attributes", entries)
     end
@@ -76,8 +76,11 @@ module YardMd
       block = format_block(method)
       heading += " #{block}" unless block.empty?
       heading += " (#{method.visibility})" unless method.visibility == :public
-      aliases = list("Also known as", method.aliases.map(&:name))
-      [heading, docs(method, 3), aliases].compact.reject(&:empty?).join("\n\n")
+      [heading, docs(method, 3), aliases([method])].compact.reject(&:empty?).join("\n\n")
+    end
+
+    def aliases(methods)
+      list("Also known as", @verifier.run(methods.flat_map(&:aliases)).map(&:name))
     end
 
     def section(title, entries)

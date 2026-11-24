@@ -8,7 +8,7 @@ module YardMd
     CLOSING_TAG = %r{</(?:tt|code|b|em|i)>}
     PLUS = /(?<![\w+])\+([^\s+]+)\+(?![\w+])/
     LIST_ITEM = /\A(\s*)([*-]|\d+\.|[a-z]\.)\s+/
-    FENCE = /\A\s*```/
+    FENCE = /\A\s*(?:```|~~~)/
 
     INLINE = [
       [/(?<![\w*])\*([^\s*]+)\*(?![\w*])/, "**\\1**"],

@@ -3,7 +3,7 @@
 module YardMd
   # @api private
   class Prose
-    DIRECTIVE = /^[ \t]*:(?:markup|include|nodoc|doc|stopdoc|startdoc|enddoc|title|section|category):.*(?:\n|\z)/
+    DIRECTIVE = /\A[ \t]*:(?:markup|include|nodoc|doc|stopdoc|startdoc|enddoc|title|section|category):/
     FILE_MARKUP = /^\s*#\s*:markup:\s*(\w+)/
     LINK = /(\\|!)?\{(?!\})(\S+?)(?:\s([^}]*?\S))?\}/
     URL = %r{\A(?:\w+://|mailto:)}
@@ -22,7 +22,6 @@ module YardMd
     end
 
     def call(text, object, level)
-      text = text.gsub(DIRECTIVE, "")
       text = RDocMarkup.new(text, level).to_markdown if markup(object.file) == :rdoc
       inline(text)
     end
@@ -47,12 +46,13 @@ module YardMd
 
     def inline(text)
       fenced = false
-      text.lines.map do |line|
+      text.lines.filter_map do |line|
         if line.match?(RDocMarkup::FENCE)
           fenced = !fenced
           next line
         end
         next line if fenced || line.start_with?("    ", "\t")
+        next if line.match?(DIRECTIVE)
 
         html = Prose.substitute(line.gsub(RDocMarkup::TELETYPE, "`\\2`"), RDocMarkup::HTML_EMPHASIS)
         Prose.outside_code(html) do |part|

@@ -40,6 +40,7 @@ module Sample
 
     # @return [Symbol] the widget's color
     attr_accessor :color
+    alias_method :hue, :color
 
     # The widget's size.
     attr_reader :size
@@ -71,6 +72,8 @@ module Sample
       self
     end
     alias_method :repaint, :paint
+    alias_method :daub, :paint
+    private :daub
 
     # @overload resize(size)
     #   Sets the size.
