@@ -15,9 +15,9 @@ RSpec.describe "exe/yard-md" do
     end
   end
 
-  def yard_md(*args)
+  def yard_md(*args, chdir: @project)
     Bundler.with_unbundled_env do
-      Open3.capture3(RbConfig.ruby, *load_path, File.join(root, "exe/yard-md"), *args, chdir: @project)
+      Open3.capture3(RbConfig.ruby, *load_path, File.join(root, "exe/yard-md"), *args, chdir: chdir)
     end
   end
 
@@ -56,10 +56,40 @@ RSpec.describe "exe/yard-md" do
     expect(err).to start_with("yard-md: ").and include("absent")
   end
 
-  it "asks for the output directory" do
-    _, err, status = yard_md
+  it "says what it does, takes and writes on --help and -h, and runs nothing, in a project or outside one" do
+    [@project, File.dirname(@project)].product(%w[--help -h]).each do |dir, flag|
+      out, err, status = nil
 
+      expect { out, err, status = yard_md(flag, chdir: dir) }.not_to change { Dir.children(dir) }, "#{flag} in #{dir}"
+      expect(status).to be_success, "#{flag} in #{dir}: #{err}"
+      expect(out).to start_with("Usage: yard-md <output dir>\n")
+        .and include("<output dir>/<gem>-<version>/", ".yardopts", "skipped", "stderr", "exit status", "--version")
+    end
+  end
+
+  it "prints its version" do
+    out, _, status = yard_md("--version")
+
+    expect(status).to be_success
+    expect(out).to eq("yard-md #{YardMd::VERSION}\n")
+  end
+
+  it "rejects an unknown option rather than taking it for the output directory" do
+    _, err, status = nil
+
+    expect { _, err, status = yard_md("-x") }.not_to change { Dir.children(@project) }
     expect(status).not_to be_success
-    expect(err).to eq("usage: yard-md <output dir>\n")
+    expect(err).to eq("yard-md: invalid option: -x\n")
+  end
+
+  it "answers a wrong number of arguments with its help, and runs nothing" do
+    [[], %w[one two]].each do |args|
+      out, err, status = nil
+
+      expect { out, err, status = yard_md(*args) }.not_to change { Dir.children(@project) }, args.inspect
+      expect(status).not_to be_success, args.inspect
+      expect(out).to be_empty
+      expect(err).to start_with("Usage: yard-md <output dir>\n")
+    end
   end
 end

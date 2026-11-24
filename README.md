@@ -24,6 +24,8 @@ Each gem's directory holds:
 - its README and the files its `.yardopts` names, as they are;
 - its `doc/`, `docs/`, `examples/`, `example/`, `samples/` and `sample/` directories, copied whole.
 
+`yard-md --help` says the same in short.
+
 Docstrings written in RDoc markup (`+code+`, `<tt>`, `*bold*`, `_em_`, `= Heading`, labelled lists) come out in Markdown; code examples are left as they are.
 
 ## License
