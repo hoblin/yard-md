@@ -56,8 +56,8 @@ module YardMd
     end
 
     def directories(output)
-      DIRECTORIES.map { |directory| File.join(@spec.full_gem_path, directory) }.select { |directory| File.directory?(directory) }.each do |directory|
-        FileUtils.cp_r(directory, output)
+      DIRECTORIES.map { |directory| File.join(@spec.full_gem_path, directory) }.each do |directory|
+        FileUtils.cp_r(directory, output) if File.directory?(directory) && !output.start_with?("#{directory}/")
       end
     end
   end

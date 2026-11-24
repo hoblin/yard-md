@@ -194,6 +194,27 @@ RSpec.describe YardMd::GemDocs do
     end
   end
 
+  context "when the output lies inside one of the gem's own directories" do
+    let(:gem_root) { Dir.mktmpdir }
+    let(:spec) { instance_double(Gem::Specification, default_gem?: false, full_gem_path: gem_root) }
+
+    before do
+      FileUtils.mkdir_p(File.join(gem_root, "lib"))
+      File.write(File.join(gem_root, "lib/own.rb"), "# Its own docs.\nmodule Own; end\n")
+      FileUtils.mkdir_p(File.join(gem_root, "doc/.own-1.0.0-staging"))
+    end
+
+    after { FileUtils.rm_rf(gem_root) }
+
+    it "documents the gem without copying that directory into itself" do
+      output = File.join(gem_root, "doc/.own-1.0.0-staging")
+
+      described_class.new(spec).write(output)
+
+      expect(Dir.children(output)).to eq(["Own.md"])
+    end
+  end
+
   context "with a default gem, whose code lives in Ruby's own library directory" do
     let(:output) { Dir.mktmpdir }
     let(:spec) { instance_double(Gem::Specification, default_gem?: true, full_gem_path: "/nonexistent", files: ["exe/sample", "lib/sample.rb"]) }
