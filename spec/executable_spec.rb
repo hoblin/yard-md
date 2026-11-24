@@ -34,6 +34,7 @@ RSpec.describe "exe/yard-md" do
     expect(Dir.children(output)).to contain_exactly("sample-0.1.0", "bundler-#{Bundler::VERSION}")
     expect(File.read(File.join(output, "sample-0.1.0/Sample/Widget.md"))).to start_with("# class Sample::Widget")
     expect(File.join(output, "bundler-#{Bundler::VERSION}/Bundler.md")).to satisfy { |page| File.file?(page) }
+    expect(File.join(@home, "xdg")).not_to satisfy { |cache| File.exist?(cache) }
   end
 
   it "writes nothing on a second run" do
@@ -78,11 +79,14 @@ RSpec.describe "exe/yard-md" do
       expect(Dir.children(File.join(@home, "xdg/gem-docs"))).to include("sample-0.1.0")
     end
 
-    it "writes to ~/.cache/gem-docs/ when XDG_CACHE_HOME is not set" do
-      _, err, status = yard_md(env: {"XDG_CACHE_HOME" => nil, "HOME" => @home})
+    it "writes to ~/.cache/gem-docs/ when XDG_CACHE_HOME is unset, empty or relative" do
+      [nil, "", "relative"].each do |xdg|
+        _, err, status = yard_md(env: {"XDG_CACHE_HOME" => xdg, "HOME" => @home})
 
-      expect(status).to be_success, err
-      expect(Dir.children(File.join(@home, ".cache/gem-docs"))).to include("sample-0.1.0")
+        expect(status).to be_success, "#{xdg.inspect}: #{err}"
+        expect(Dir.children(File.join(@home, ".cache/gem-docs"))).to include("sample-0.1.0")
+        expect(Dir.children(@project)).to eq(["Gemfile"])
+      end
     end
   end
 
@@ -104,7 +108,7 @@ RSpec.describe "exe/yard-md" do
   it "answers more than one argument with its help, and runs nothing" do
     out, err, status = nil
 
-    expect { out, err, status = yard_md("one", "two") }.not_to change { Dir.children(@home) }
+    expect { out, err, status = yard_md("one", "two") }.not_to change { Dir.glob("**/*", base: @home) }
     expect(status).not_to be_success
     expect(out).to be_empty
     expect(err).to start_with("Usage: yard-md [output dir]\n")

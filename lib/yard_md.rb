@@ -14,7 +14,9 @@ require_relative "yard_md/bundle"
 
 # The documentation of installed gems as plain Markdown.
 module YardMd
-  # Where the documentation goes unless told otherwise: the user's cache
-  # directory, which follows +XDG_CACHE_HOME+.
-  CACHE = File.join(Gem.cache_home, "gem-docs")
+  cache_home = Gem.cache_home
+  cache_home = File.join(Gem.user_home, ".cache") unless File.absolute_path?(cache_home)
+
+  # Where the documentation goes unless told otherwise.
+  CACHE = File.join(cache_home, "gem-docs")
 end

@@ -13,8 +13,8 @@ parser = OptionParser.new(<<~HELP)
   example(s)/ and sample(s)/ directories. A gem whose directory exists is
   skipped, so the output directory is a cache several projects can share.
 
-  The output directory defaults to gem-docs/ in the user's cache directory,
-  XDG_CACHE_HOME when set: here, #{YardMd::CACHE}.
+  The output directory defaults to gem-docs/ in XDG_CACHE_HOME, or in ~/.cache
+  when that is unset, empty or relative: here, #{YardMd::CACHE}.
 
   Prints each gem it documents. A gem it cannot document is reported on stderr
   and the rest go on; the exit status says whether every gem is documented.
