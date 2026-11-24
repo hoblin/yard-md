@@ -4,7 +4,7 @@ module YardMd
   # The documentation of every gem the current project's bundle resolves on
   # this platform, written as Markdown into one directory per gem version.
   #
-  # The output directory is a cache: a gem whose +<gem>-<version>+ directory
+  # The output directory is a cache: a gem whose <tt><gem>-<version></tt> directory
   # exists is skipped, and a directory appears only once its gem is fully
   # documented, so an interrupted or concurrent run leaves no partial one.
   # Several projects can share it.
@@ -17,7 +17,7 @@ module YardMd
       @output = File.expand_path(output)
     end
 
-    # Documents each gem not documented yet, printing its +<gem>-<version>+ to
+    # Documents each gem not documented yet, printing its <tt><gem>-<version></tt> to
     # stdout. A gem that fails is reported on stderr and skipped; the rest go on.
     #
     # @return [Boolean] whether every gem is documented
@@ -37,24 +37,23 @@ module YardMd
       return true if File.exist?(target)
 
       staging = Dir.mktmpdir(".#{name}-", @output)
-      if write(spec, staging)
-        publish(staging, target)
-        puts name
-        true
-      else
-        FileUtils.rm_rf(staging)
-        false
-      end
+      return false unless write(spec, staging)
+
+      publish(staging, target)
+      puts name
+      true
+    ensure
+      FileUtils.rm_rf(staging) if staging
     end
 
     def write(spec, staging)
       # YARD's registry, tag library and logger are process-wide, and a gem's
       # .yardopts changes them; a process per gem keeps one gem out of the next.
       pid = fork do
-        GemDocs.new(spec.full_gem_path).write(staging)
+        GemDocs.new(spec).write(staging)
         exit!(true)
       rescue => error
-        warn "yard-md: #{spec.name}-#{spec.version}: #{error.message}"
+        warn "yard-md: #{spec.name}-#{spec.version}: #{error.class}: #{error.message}"
         exit!(false)
       end
       Process.wait2(pid).last.success?
@@ -63,7 +62,7 @@ module YardMd
     def publish(staging, target)
       File.rename(staging, target)
     rescue Errno::EEXIST, Errno::ENOTEMPTY
-      FileUtils.rm_rf(staging)
+      nil
     end
   end
 end

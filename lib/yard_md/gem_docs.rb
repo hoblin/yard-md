@@ -3,30 +3,40 @@
 module YardMd
   # @api private
   class GemDocs
-    YARDOC_ARGS = %w[--no-output --no-save --no-stats --quiet --no-private --hide-api private].freeze
+    YARDOC_ARGS = %w[--no-output --no-save --quiet --no-private --hide-api private].freeze
     DIRECTORIES = %w[doc docs examples example samples sample].freeze
 
-    def initialize(path)
-      @path = path
+    def initialize(spec)
+      @spec = spec
     end
 
     def write(output)
       output = File.expand_path(output)
-      Dir.chdir(@path) do
+      Dir.chdir(source_root) do
         yardoc = parse
         pages(yardoc, output)
-        prose(yardoc.options.files, output)
-        directories(output)
+        extra_files(yardoc.options.files, output)
       end
+      directories(output)
     end
 
     private
+
+    def source_root
+      @spec.default_gem? ? RbConfig::CONFIG["rubylibdir"] : @spec.full_gem_path
+    end
+
+    def sources
+      return [] unless @spec.default_gem?
+
+      @spec.files.filter_map { |file| file.delete_prefix("lib/") if file.start_with?("lib/") && file.end_with?(".rb") }
+    end
 
     def parse
       YARD::Config.options[:safe_mode] = true
       YARD::Logger.instance.io = $stderr
       YARD::Registry.clear
-      YARD::CLI::Yardoc.new.tap { |yardoc| yardoc.run(*YARDOC_ARGS) }
+      YARD::CLI::Yardoc.new.tap { |yardoc| yardoc.run(*YARDOC_ARGS, *sources) }
     end
 
     def pages(yardoc, output)
@@ -38,7 +48,7 @@ module YardMd
       end
     end
 
-    def prose(files, output)
+    def extra_files(files, output)
       files.map(&:filename).uniq.each do |file|
         FileUtils.mkdir_p(File.join(output, File.dirname(file)))
         FileUtils.cp(file, File.join(output, file))
@@ -46,7 +56,7 @@ module YardMd
     end
 
     def directories(output)
-      DIRECTORIES.select { |directory| File.directory?(directory) }.each do |directory|
+      DIRECTORIES.map { |directory| File.join(@spec.full_gem_path, directory) }.select { |directory| File.directory?(directory) }.each do |directory|
         FileUtils.cp_r(directory, output)
       end
     end

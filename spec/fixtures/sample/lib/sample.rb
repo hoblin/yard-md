@@ -12,9 +12,13 @@ require_relative "sample/notes"
 #
 #   widget = Sample::Widget.new(:blue)
 #   widget.paint(+1+, *args)
+#   Sample.where(name: {first: 1}).each {|x| "<b>#{x}</b>" }
 #
 # [color] the widget's color
 # size:: the widget's size
+#
+# Set with <tt>SET client_encoding TO
+# <encoding></tt>. See {file:README.md the readme}, \{literal} and {Sample::Widget}.
 module Sample
   VERSION = "0.1.0"
 
@@ -39,6 +43,9 @@ module Sample
 
     # The widget's size.
     attr_reader :size
+
+    # Sets the finish.
+    attr_writer :finish
 
     # Creates a widget.
     #
@@ -76,6 +83,11 @@ module Sample
     # Finds a widget by color.
     # @deprecated Use {.where} instead.
     def self.find(color)
+    end
+
+    # Forgets the widget.
+    # @return [void]
+    def forget
     end
 
     # @api private

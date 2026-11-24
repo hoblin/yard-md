@@ -4,11 +4,13 @@ module YardMd
   # @api private
   class RDocMarkup
     TELETYPE = %r{<(tt|code)>(.*?)</\1>}
-    WRAPPED_TAG = %r{<(tt|code|b|em|i)>[^<\n]*\n[^<]*?</\1>}
+    OPENING_TAG = /<(?:tt|code|b|em|i)>/
+    CLOSING_TAG = %r{</(?:tt|code|b|em|i)>}
     PLUS = /(?<![\w+])\+([^\s+]+)\+(?![\w+])/
     LIST_ITEM = /\A(\s*)([*-]|\d+\.|[a-z]\.)\s+/
+    FENCE = /\A\s*```/
 
-    EMPHASIS = [
+    INLINE = [
       [/(?<![\w*])\*([^\s*]+)\*(?![\w*])/, "**\\1**"],
       [/(?<![\w_])_([^\s_](?:\S*[^\s_])?)_(?!\w)/, "*\\1*"],
       [/\{([^{}]+)\}\[rdoc-ref:[^\]]+\]/, "\\1"],
@@ -18,13 +20,13 @@ module YardMd
       [/\\(?=[A-Z#:+*_<])/, ""]
     ].freeze
 
-    TAGS = [
+    HTML_EMPHASIS = [
       [%r{<b>(.*?)</b>}, "**\\1**"],
       [%r{<(em|i)>(.*?)</\1>}, "*\\2*"]
     ].freeze
 
     def initialize(text, level)
-      @lines = text.gsub(WRAPPED_TAG) { $&.tr("\n", " ") }.lines(chomp: true)
+      @lines = text.lines(chomp: true)
       @level = level
       @output = []
       @margin = 0
@@ -33,12 +35,12 @@ module YardMd
     def to_markdown
       until @lines.empty?
         line = @lines.first
-        if line.start_with?("```")
+        if line.match?(FENCE)
           fence
         elsif indent(line) > @margin && !line.strip.empty? && !line.match?(LIST_ITEM)
           verbatim
         else
-          @output << paragraph(@lines.shift)
+          @output << paragraph(joined_line)
         end
       end
       @output.join("\n")
@@ -48,8 +50,14 @@ module YardMd
 
     def fence
       @output << @lines.shift
-      @output << @lines.shift until @lines.empty? || @lines.first.start_with?("```")
+      @output << @lines.shift until @lines.empty? || @lines.first.match?(FENCE)
       @output << @lines.shift unless @lines.empty?
+    end
+
+    def joined_line
+      line = @lines.shift
+      line += " #{@lines.shift.strip}" while line.scan(OPENING_TAG).size > line.scan(CLOSING_TAG).size && @lines.first.to_s.strip != ""
+      line
     end
 
     def verbatim
@@ -79,8 +87,8 @@ module YardMd
 
     def inline(text)
       text = Prose.outside_code(text.gsub(TELETYPE, "`\\2`")) { |part| part.gsub(PLUS, "`\\1`") }
-      text = Prose.outside_code(text) { |part| Prose.substitute(part, EMPHASIS) }
-      Prose.substitute(text, TAGS)
+      text = Prose.outside_code(text) { |part| Prose.substitute(part, INLINE) }
+      Prose.substitute(text, HTML_EMPHASIS)
     end
 
     def indent(line)

@@ -20,7 +20,7 @@ Run in a project, yard-md documents every gem Bundler resolves for it on this pl
 
 Each gem's directory holds:
 
-- a page per class and module YARD documents, at YARD's own paths (`ActiveRecord/FinderMethods.md`), public API only;
+- a page per class and module YARD documents, at YARD's own paths (`ActiveRecord/FinderMethods.md`): the public API, plus whatever visibility the gem's `.yardopts` asks for, without `@private` and `@api private`;
 - its README and the files its `.yardopts` names, as they are;
 - its `doc/`, `docs/`, `examples/`, `example/`, `samples/` and `sample/` directories, copied whole.
 

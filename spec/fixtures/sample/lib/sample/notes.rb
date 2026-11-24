@@ -6,5 +6,11 @@
 # while <tt>HTML</tt> <b>tags</b> become Markdown.
 #
 #     indented {code}
+#
+# * a list item with its own code:
+#
+#   ```ruby
+#   options = {count: 2}
+#   ```
 class Sample::Notes
 end

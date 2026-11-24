@@ -32,6 +32,7 @@ RSpec.describe "exe/yard-md" do
     expect(out.lines(chomp: true)).to contain_exactly("sample-0.1.0", "bundler-#{Bundler::VERSION}")
     expect(Dir.children(output)).to contain_exactly("sample-0.1.0", "bundler-#{Bundler::VERSION}")
     expect(File.read(File.join(output, "sample-0.1.0/Sample/Widget.md"))).to start_with("# class Sample::Widget")
+    expect(File.join(output, "bundler-#{Bundler::VERSION}/Bundler.md")).to satisfy { |page| File.file?(page) }
   end
 
   it "writes nothing on a second run" do

@@ -48,13 +48,13 @@ module YardMd
     def inline(text)
       fenced = false
       text.lines.map do |line|
-        if line.start_with?("```")
+        if line.match?(RDocMarkup::FENCE)
           fenced = !fenced
           next line
         end
         next line if fenced || line.start_with?("    ", "\t")
 
-        html = Prose.substitute(line.gsub(RDocMarkup::TELETYPE, "`\\2`"), RDocMarkup::TAGS)
+        html = Prose.substitute(line.gsub(RDocMarkup::TELETYPE, "`\\2`"), RDocMarkup::HTML_EMPHASIS)
         Prose.outside_code(html) do |part|
           part.gsub(LINK) { ($1) ? $~[0][1..] : link($2, $3) }
         end

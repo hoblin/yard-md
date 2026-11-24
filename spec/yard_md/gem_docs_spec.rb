@@ -3,12 +3,14 @@
 RSpec.describe YardMd::GemDocs do
   fixture = File.expand_path("../fixtures/sample", __dir__)
 
-  before do
+  before(:context) do
     @output = Dir.mktmpdir
-    described_class.new(fixture).write(@output)
+    spec = Gem::Specification.load(File.join(fixture, "sample.gemspec"))
+    spec.full_gem_path = fixture
+    described_class.new(spec).write(@output)
   end
 
-  after { FileUtils.rm_rf(@output) }
+  after(:context) { FileUtils.rm_rf(@output) }
 
   def page(path)
     File.read(File.join(@output, path))
@@ -47,7 +49,7 @@ RSpec.describe YardMd::GemDocs do
     end
 
     it "writes an RDoc docstring as Markdown, its code example unchanged" do
-      expect(page("Sample.md")).to include(<<~MARKDOWN)
+      expect(page("Sample.md")).to include(<<~'MARKDOWN')
         ## Sample
 
         A gem documented in RDoc markup: `code`, `teletype`, **bold** and *emphasis*.
@@ -59,16 +61,37 @@ RSpec.describe YardMd::GemDocs do
         ```
         widget = Sample::Widget.new(:blue)
         widget.paint(+1+, *args)
+        Sample.where(name: {first: 1}).each {|x| "<b>#{x}</b>" }
         ```
 
         **color** — the widget's color
         **size** — the widget's size
+
+        Set with `SET client_encoding TO <encoding>`. See the readme, {literal} and `Sample::Widget`.
       MARKDOWN
     end
 
     it "leaves a docstring from a file in Markdown markup as it is, but for its HTML" do
-      expect(page("Sample/Notes.md"))
-        .to include("+literal+ and *emphasis* stay as they are,\nwhile `HTML` **tags** become Markdown.\n\n    indented {code}\n")
+      expect(page("Sample/Notes.md")).to include(<<~MARKDOWN)
+        Notes written in Markdown: +literal+ and *emphasis* stay as they are,
+        while `HTML` **tags** become Markdown.
+
+            indented {code}
+
+        * a list item with its own code:
+
+          ```ruby
+          options = {count: 2}
+          ```
+      MARKDOWN
+    end
+
+    it "drops RDoc directives" do
+      expect(page("Sample/Notes.md")).not_to include(":markup:")
+    end
+
+    it "heads a page without the implicit Object superclass" do
+      expect(page("Sample/Empty/Inner.md")).to start_with("# class Sample::Empty::Inner\n")
     end
 
     it "lists constants with their values" do
@@ -84,10 +107,21 @@ RSpec.describe YardMd::GemDocs do
 
         Returns: `Symbol` — the widget's color
 
+        ### #finish (write-only)
+
+        Sets the finish.
+
         ### #size (read-only)
 
         The widget's size.
+
+        ## Class methods
       MARKDOWN
+      expect(page("Sample/Widget.md")).not_to match(/### #(color|finish|size)\b.*\n(?m:.*)### #\1\b/)
+    end
+
+    it "omits a void return" do
+      expect(page("Sample/Widget.md")).to include("### #forget\n\nForgets the widget.\n\n### #initialize")
     end
 
     it "writes a method's tags, its block and its aliases" do
@@ -152,6 +186,21 @@ RSpec.describe YardMd::GemDocs do
     it "leaves out the API that is not public" do
       expect(page("Sample/Widget.md")).not_to match(/internal|hidden|compare|secret|repaint\(/)
       expect(written).not_to include("Sample/Internal.md")
+    end
+  end
+
+  context "with a default gem, whose code lives in Ruby's own library directory" do
+    let(:output) { Dir.mktmpdir }
+    let(:spec) { instance_double(Gem::Specification, default_gem?: true, full_gem_path: "/nonexistent", files: ["exe/sample", "lib/sample.rb"]) }
+
+    before { stub_const("RbConfig::CONFIG", RbConfig::CONFIG.merge("rubylibdir" => File.join(fixture, "lib"))) }
+
+    after { FileUtils.rm_rf(output) }
+
+    it "documents the gem's own files there" do
+      described_class.new(spec).write(output)
+
+      expect(Dir.glob("**/*.md", base: output)).to contain_exactly("Sample.md", "Sample/Empty/Inner.md", "Sample/Widget.md")
     end
   end
 end

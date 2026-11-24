@@ -31,7 +31,7 @@ module YardMd
         title,
         list("Includes", @object.mixins(:instance)),
         list("Extended by", @object.mixins(:class)),
-        list("Defined in", @object.files.map(&:first).uniq)
+        list("Defined in", [@object.file].compact)
       ].compact.join("\n")
     end
 
@@ -91,7 +91,7 @@ module YardMd
     def tags(object, level)
       YARD::Tags::Library.visible_tags.filter_map do |name|
         tags = object.tags(name)
-        next if tags.empty? || (name == :return && object.respond_to?(:constructor?) && object.constructor?)
+        next if tags.empty? || (name == :return && returns_nothing?(object, tags))
 
         case name
         when :example then tags.map { |tag| example(tag) }.join("\n\n")
@@ -99,6 +99,10 @@ module YardMd
         else listing(YARD::Tags::Library.labels[name], tags, object)
         end
       end.join("\n\n")
+    end
+
+    def returns_nothing?(object, tags)
+      (object.respond_to?(:constructor?) && object.constructor?) || (tags.one? && tags.first.types == ["void"])
     end
 
     def listing(label, tags, object)
