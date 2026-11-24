@@ -10,10 +10,10 @@ module YardMd
   # Several projects can share it.
   #
   # @example
-  #   YardMd::Bundle.new("~/.cache/gem-docs").document
+  #   YardMd::Bundle.new.document
   class Bundle
     # @param output [String] the directory to write into; created when missing
-    def initialize(output)
+    def initialize(output = CACHE)
       @output = File.expand_path(output)
     end
 

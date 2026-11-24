@@ -5,13 +5,16 @@ require "optparse"
 require "yard_md"
 
 parser = OptionParser.new(<<~HELP)
-  Usage: yard-md <output dir>
+  Usage: yard-md [output dir]
 
   Run in a project. Documents every gem its bundle resolves on this platform
   as Markdown, each into <output dir>/<gem>-<version>/: a page per class and
   module, the README and the files its .yardopts names, and its doc/, docs/,
   example(s)/ and sample(s)/ directories. A gem whose directory exists is
   skipped, so the output directory is a cache several projects can share.
+
+  The output directory defaults to gem-docs/ in the user's cache directory,
+  XDG_CACHE_HOME when set: here, #{YardMd::CACHE}.
 
   Prints each gem it documents. A gem it cannot document is reported on stderr
   and the rest go on; the exit status says whether every gem is documented.
@@ -22,8 +25,8 @@ parser.version = YardMd::VERSION
 
 begin
   arguments = parser.parse(ARGV)
-  abort parser.help unless arguments.size == 1
-  exit YardMd::Bundle.new(arguments.first).document
+  abort parser.help if arguments.size > 1
+  exit YardMd::Bundle.new(*arguments).document
 rescue OptionParser::ParseError, Bundler::BundlerError
   parser.abort
 end

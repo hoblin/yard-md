@@ -11,13 +11,14 @@ RSpec.describe "exe/yard-md" do
     Dir.mktmpdir do |dir|
       FileUtils.cp_r(Dir.glob(File.join(root, "spec/fixtures/*")), dir)
       @project = File.join(dir, "project")
+      @home = dir
       example.run
     end
   end
 
-  def yard_md(*args, chdir: @project)
+  def yard_md(*args, chdir: @project, env: {"XDG_CACHE_HOME" => File.join(@home, "xdg")})
     Bundler.with_unbundled_env do
-      Open3.capture3(RbConfig.ruby, *load_path, File.join(root, "exe/yard-md"), *args, chdir: chdir)
+      Open3.capture3(env, RbConfig.ruby, *load_path, File.join(root, "exe/yard-md"), *args, chdir: chdir)
     end
   end
 
@@ -62,8 +63,26 @@ RSpec.describe "exe/yard-md" do
 
       expect { out, err, status = yard_md(flag, chdir: dir) }.not_to change { Dir.children(dir) }, "#{flag} in #{dir}"
       expect(status).to be_success, "#{flag} in #{dir}: #{err}"
-      expect(out).to start_with("Usage: yard-md <output dir>\n")
+      expect(out).to start_with("Usage: yard-md [output dir]\n")
         .and include("<output dir>/<gem>-<version>/", ".yardopts", "skipped", "stderr", "exit status", "--version")
+        .and include("here, #{@home}/xdg/gem-docs.")
+    end
+  end
+
+  describe "with no output directory" do
+    it "writes to gem-docs/ in XDG_CACHE_HOME" do
+      out, err, status = yard_md
+
+      expect(status).to be_success, err
+      expect(out.lines(chomp: true)).to include("sample-0.1.0")
+      expect(Dir.children(File.join(@home, "xdg/gem-docs"))).to include("sample-0.1.0")
+    end
+
+    it "writes to ~/.cache/gem-docs/ when XDG_CACHE_HOME is not set" do
+      _, err, status = yard_md(env: {"XDG_CACHE_HOME" => nil, "HOME" => @home})
+
+      expect(status).to be_success, err
+      expect(Dir.children(File.join(@home, ".cache/gem-docs"))).to include("sample-0.1.0")
     end
   end
 
@@ -82,14 +101,12 @@ RSpec.describe "exe/yard-md" do
     expect(err).to eq("yard-md: invalid option: -x\n")
   end
 
-  it "answers a wrong number of arguments with its help, and runs nothing" do
-    [[], %w[one two]].each do |args|
-      out, err, status = nil
+  it "answers more than one argument with its help, and runs nothing" do
+    out, err, status = nil
 
-      expect { out, err, status = yard_md(*args) }.not_to change { Dir.children(@project) }, args.inspect
-      expect(status).not_to be_success, args.inspect
-      expect(out).to be_empty
-      expect(err).to start_with("Usage: yard-md <output dir>\n")
-    end
+    expect { out, err, status = yard_md("one", "two") }.not_to change { Dir.children(@home) }
+    expect(status).not_to be_success
+    expect(out).to be_empty
+    expect(err).to start_with("Usage: yard-md [output dir]\n")
   end
 end
