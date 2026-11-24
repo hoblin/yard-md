@@ -15,9 +15,9 @@ RSpec.describe "exe/yard-md" do
     end
   end
 
-  def yard_md(*args)
+  def yard_md(*args, chdir: @project)
     Bundler.with_unbundled_env do
-      Open3.capture3(RbConfig.ruby, *load_path, File.join(root, "exe/yard-md"), *args, chdir: @project)
+      Open3.capture3(RbConfig.ruby, *load_path, File.join(root, "exe/yard-md"), *args, chdir: chdir)
     end
   end
 
@@ -56,10 +56,42 @@ RSpec.describe "exe/yard-md" do
     expect(err).to start_with("yard-md: ").and include("absent")
   end
 
-  it "asks for the output directory" do
-    _, err, status = yard_md
+  describe "--help" do
+    it "says what it does, takes and writes, and exits without running, even outside a project" do
+      outside = File.dirname(@project)
+
+      %w[--help -h].each do |flag|
+        out, err, status = yard_md(flag, chdir: outside)
+
+        expect(status).to be_success, err
+        expect(out).to start_with("Usage: yard-md <output dir>\n")
+          .and include("<output dir>/<gem>-<version>/", ".yardopts", "skipped", "stderr", "exit status")
+        expect(Dir.children(outside)).to contain_exactly("project", "sample", "terse")
+      end
+    end
+  end
+
+  it "prints its version" do
+    out, _, status = yard_md("--version")
+
+    expect(status).to be_success
+    expect(out).to eq("yard-md #{YardMd::VERSION}\n")
+  end
+
+  it "rejects an unknown option rather than taking it for the output directory" do
+    _, err, status = yard_md("-x")
 
     expect(status).not_to be_success
-    expect(err).to eq("usage: yard-md <output dir>\n")
+    expect(err).to eq("yard-md: invalid option: -x\n")
+    expect(Dir.children(@project)).to eq(["Gemfile"])
+  end
+
+  it "answers a wrong number of arguments with its help" do
+    [[], %w[one two]].each do |args|
+      _, err, status = yard_md(*args)
+
+      expect(status).not_to be_success
+      expect(err).to start_with("Usage: yard-md <output dir>\n")
+    end
   end
 end

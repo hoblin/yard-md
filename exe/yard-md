@@ -1,12 +1,33 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require "optparse"
 require "yard_md"
 
-abort "usage: yard-md <output dir>" unless ARGV.size == 1
+parser = OptionParser.new(<<~HELP)
+  Usage: yard-md <output dir>
+
+  Run in a project. Documents every gem its bundle resolves on this platform
+  as Markdown, each into <output dir>/<gem>-<version>/: a page per class and
+  module, the README and the files its .yardopts names, and its doc/, docs/
+  and example directories. A gem whose directory exists is skipped, so the
+  output directory is a cache several projects can share.
+
+  Prints each gem it documents. A gem it cannot document is reported on stderr
+  and the rest go on; the exit status says whether every gem is documented.
+HELP
+parser.version = YardMd::VERSION
 
 begin
-  exit YardMd::Bundle.new(ARGV.first).document
+  arguments = parser.parse(ARGV)
+rescue OptionParser::ParseError => error
+  abort "yard-md: #{error.message}"
+end
+
+abort parser.help unless arguments.size == 1
+
+begin
+  exit YardMd::Bundle.new(arguments.first).document
 rescue Bundler::BundlerError => error
   abort "yard-md: #{error.message}"
 end
