@@ -1,0 +1,3 @@
+# Guide
+
+Named in `.yardopts`.

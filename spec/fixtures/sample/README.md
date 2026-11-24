@@ -1,0 +1,3 @@
+# Sample
+
+The front page.
