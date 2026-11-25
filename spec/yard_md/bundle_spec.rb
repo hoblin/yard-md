@@ -35,6 +35,20 @@ RSpec.describe YardMd::Bundle do
       end
     end
 
+    context "when YARD cannot process some of a gem's code" do
+      let(:specs) { [gem_spec("broken", "1.0.0", File.expand_path("../fixtures/broken", __dir__))] }
+
+      it "documents the gem and reports that code under its name" do
+        result = nil
+
+        expect { result = bundle.document }
+          .to output("broken-1.0.0\n").to_stdout
+          .and output(/\Ayard-md: broken-1\.0\.0:\n\[error\]: Unhandled exception in YARD::Handlers::Ruby::MixinHandler:/).to_stderr_from_any_process
+
+        expect(result).to be(true)
+      end
+    end
+
     context "when a gem's .yardopts changes YARD's settings" do
       let(:specs) { [gem_spec("terse", "1.0.0", File.expand_path("../fixtures/terse", __dir__)), sample] }
 

@@ -12,12 +12,14 @@ module YardMd
 
     def write(output)
       output = File.expand_path(output)
+      log = StringIO.new
       Dir.chdir(source_root) do
-        yardoc = parse
+        yardoc = parse(log)
         pages(yardoc, output)
         extra_files(yardoc.options.files, output)
       end
       directories(output)
+      log.string
     end
 
     private
@@ -32,9 +34,10 @@ module YardMd
       @spec.files.filter_map { |file| file.delete_prefix("lib/") if file.start_with?("lib/") && file.end_with?(".rb") }
     end
 
-    def parse
+    def parse(log)
       YARD::Config.options[:safe_mode] = true
-      YARD::Logger.instance.io = $stderr
+      YARD::Logger.instance.io = log
+      YARD::Logger.instance.show_backtraces = false
       YARD::Registry.clear
       YARD::CLI::Yardoc.new.tap { |yardoc| yardoc.run(*YARDOC_ARGS, *sources) }
     end
