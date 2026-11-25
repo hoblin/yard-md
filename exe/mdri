@@ -22,8 +22,8 @@ parser = OptionParser.new(<<~HELP)
 
   Prints the answer and writes nothing. When nothing in the bundle documents
   what it is asked, says so on stderr and exits non-zero. A gem answers once
-  yard-md has documented it; one documented by yard-md 0.1.0 answers after its
-  directory is removed and yard-md runs again.
+  yard-md has documented it; one documented by yard-md 0.1.0 answers after
+  yard-md --force documents it again.
 
   Options: -h, --help shows this; -v, --version prints the version.
 HELP

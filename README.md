@@ -16,7 +16,7 @@ cd my-project
 yard-md
 ```
 
-Run in a project, yard-md documents every gem Bundler resolves for it on this platform, each into `<output dir>/<gem>-<version>/`. The output directory is `$XDG_CACHE_HOME/gem-docs`, or `~/.cache/gem-docs` when that is unset, empty or relative, unless given as the argument: `yard-md docs`. A gem whose directory already exists is skipped, so a second run writes nothing and the output directory is the cache, shared by every project.
+Run in a project, yard-md documents every gem Bundler resolves for it on this platform, each into `<output dir>/<gem>-<version>/`. The output directory is `$XDG_CACHE_HOME/gem-docs`, or `~/.cache/gem-docs` when that is unset, empty or relative, unless given as the argument: `yard-md docs`. A gem whose directory already exists is skipped, so a second run writes nothing and the output directory is the cache, shared by every project. `yard-md --force` rebuilds the project's gems whose directories exist, for when a newer yard-md writes them differently, and leaves other projects' gems alone.
 
 Each gem's directory holds:
 
@@ -35,7 +35,7 @@ mdri Faraday::Connection#get   # that instance method's documentation
 mdri Faraday.new               # that class method's documentation
 ```
 
-Run in the same project, `mdri` answers from the documentation yard-md wrote for its bundle, at the versions the bundle resolves, addressed by constant as YARD's `yri` is. Every gem in the bundle answers: a namespace several gems add to (`Rails`) lists them all, and a class a gem reopens (`String`, by activesupport) answers with that gem's methods. It reads the output directory yard-md writes, or the one given after the constant, and writes nothing. It answers from an index yard-md writes beside each gem's pages, so a gem documented by an earlier yard-md does not answer until its directory is removed and documented again. `mdri --help` says the same in short.
+Run in the same project, `mdri` answers from the documentation yard-md wrote for its bundle, at the versions the bundle resolves, addressed by constant as YARD's `yri` is. Every gem in the bundle answers: a namespace several gems add to (`Rails`) lists them all, and a class a gem reopens (`String`, by activesupport) answers with that gem's methods. It reads the output directory yard-md writes, or the one given after the constant, and writes nothing. It answers from an index yard-md writes beside each gem's pages, so a gem documented by an earlier yard-md does not answer until `yard-md --force` documents it again. `mdri --help` says the same in short.
 
 Docstrings written in RDoc markup (`+code+`, `<tt>`, `*bold*`, `_em_`, `= Heading`, labelled lists) come out in Markdown; code examples are left as they are.
 

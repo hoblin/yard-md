@@ -36,6 +36,17 @@ RSpec.describe "exe/yard-md" do
     expect(snapshot).to eq(before)
   end
 
+  it "rebuilds every gem of the bundle on --force" do
+    yard_md("docs")
+    FileUtils.touch(File.join(output, "sample-0.1.0/stale.md"))
+
+    out, err, status = yard_md("--force", "docs")
+
+    expect(status).to be_success, err
+    expect(out.lines(chomp: true)).to contain_exactly("sample-0.1.0", "bundler-#{Bundler::VERSION}")
+    expect(Dir.children(File.join(output, "sample-0.1.0"))).not_to include("stale.md")
+  end
+
   it "says in one line why a bundle it cannot resolve stops it" do
     File.write(File.join(@project, "Gemfile"), %(gem "absent", path: "../absent"\n))
 
@@ -52,9 +63,10 @@ RSpec.describe "exe/yard-md" do
 
       expect { out, err, status = yard_md(flag, chdir: dir) }.not_to change { Dir.children(dir) }, "#{flag} in #{dir}"
       expect(status).to be_success, "#{flag} in #{dir}: #{err}"
-      expect(out).to start_with("Usage: yard-md [output dir]\n")
+      expect(out).to start_with("Usage: yard-md [--force] [output dir]\n")
         .and include("<output dir>/<gem>-<version>/", ".yardopts", "skipped", "stderr", "exit status", "--version")
         .and include("here, #{@home}/xdg/gem-docs.")
+        .and match(/^ +--force +rebuilds/)
     end
   end
 
@@ -78,11 +90,13 @@ RSpec.describe "exe/yard-md" do
     end
   end
 
-  it "prints its version" do
-    out, _, status = yard_md("--version")
+  it "prints its version on --version and -v" do
+    %w[--version -v].each do |flag|
+      out, _, status = yard_md(flag)
 
-    expect(status).to be_success
-    expect(out).to eq("yard-md #{YardMd::VERSION}\n")
+      expect(status).to be_success, flag
+      expect(out).to eq("yard-md #{YardMd::VERSION}\n")
+    end
   end
 
   it "rejects an unknown option rather than taking it for the output directory" do
@@ -99,6 +113,6 @@ RSpec.describe "exe/yard-md" do
     expect { out, err, status = yard_md("one", "two") }.not_to change { Dir.glob("**/*", base: @home) }
     expect(status).not_to be_success
     expect(out).to be_empty
-    expect(err).to start_with("Usage: yard-md [output dir]\n")
+    expect(err).to start_with("Usage: yard-md [--force] [output dir]\n")
   end
 end
