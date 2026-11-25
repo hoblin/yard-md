@@ -79,7 +79,7 @@ module YardMd
         elsif reader then " (read-only)"
         else " (write-only)"
         end
-        addressed([reader, writer].compact, ["####{SCOPES[scope]}#{name}#{access}", docs(reader || writer, 3)])
+        addressed([reader, writer].compact, ["### #{SCOPES[scope]}#{name}#{access}", docs(reader || writer, 3)])
       end
       section("#{scope.capitalize} attributes", entries)
     end
