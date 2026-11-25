@@ -12,7 +12,7 @@ parser = OptionParser.new(<<~HELP)
   module, the README and the files its .yardopts names, and its doc/, docs/,
   example(s)/ and sample(s)/ directories. A gem whose directory exists is
   skipped, so the output directory is a cache several projects can share;
-  --force rebuilds it, and leaves other projects' gems alone.
+  --force rebuilds such a gem, and leaves other projects' gems alone.
 
   The output directory defaults to gem-docs/ in XDG_CACHE_HOME, or in ~/.cache
   when that is unset, empty or relative: here, #{YardMd::CACHE}.

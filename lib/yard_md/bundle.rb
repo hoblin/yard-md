@@ -21,10 +21,11 @@ module YardMd
       @force = force
     end
 
-    # Documents each gem not documented yet, or every gem when forced, printing its <tt><gem>-<version></tt> to
-    # stdout. A gem that fails is reported on stderr and skipped; the rest go on.
-    # The code YARD could not process in a gem is reported on stderr under the
-    # gem's name, without YARD's stack traces; the gem still counts as documented.
+    # Documents each gem not documented yet, or every gem when forced, printing
+    # its <tt><gem>-<version></tt> to stdout. A gem that fails is reported on
+    # stderr and skipped; the rest go on. The code YARD could not process in a
+    # gem is reported on stderr under the gem's name, without YARD's stack
+    # traces; the gem still counts as documented.
     #
     # @return [Boolean] whether every gem is documented
     # @raise [Bundler::BundlerError] when the bundle cannot be resolved, e.g.
@@ -68,10 +69,16 @@ module YardMd
     end
 
     def publish(staging, target)
-      FileUtils.rm_rf(target) if @force
+      retire(target) if @force && File.exist?(target)
       File.rename(staging, target)
     rescue Errno::EEXIST, Errno::ENOTEMPTY
       nil
+    end
+
+    def retire(target)
+      Dir.mktmpdir(".#{File.basename(target)}-", @output) do |retired|
+        File.rename(target, File.join(retired, "docs"))
+      end
     end
   end
 end

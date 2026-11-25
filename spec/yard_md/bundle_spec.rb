@@ -109,6 +109,7 @@ RSpec.describe YardMd::Bundle do
         expect { expect(bundle.document).to be(false) }.to output(/unreadable/).to_stderr_from_any_process
 
         expect(Dir.children(File.join(cache, "sample-0.1.0"))).to eq(["stale.md"])
+        expect(Dir.children(cache)).to contain_exactly("sample-0.1.0", "other-1.0.0")
       end
     end
   end
