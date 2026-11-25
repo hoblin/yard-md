@@ -3,6 +3,7 @@
 require "bundler"
 require "fileutils"
 require "json"
+require "stringio"
 require "tmpdir"
 require "yard"
 
