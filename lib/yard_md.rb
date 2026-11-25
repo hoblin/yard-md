@@ -2,6 +2,7 @@
 
 require "bundler"
 require "fileutils"
+require "stringio"
 require "tmpdir"
 require "yard"
 

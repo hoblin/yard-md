@@ -18,6 +18,8 @@ parser = OptionParser.new(<<~HELP)
 
   Prints each gem it documents. A gem it cannot document is reported on stderr
   and the rest go on; the exit status says whether every gem is documented.
+  What YARD could not process in a gem is reported on stderr under its name,
+  and the gem still counts as documented.
 
   Options: -h, --help shows this; -v, --version prints the version.
 HELP

@@ -215,6 +215,28 @@ RSpec.describe YardMd::GemDocs do
     end
   end
 
+  context "when YARD cannot process some of a gem's code" do
+    let(:output) { Dir.mktmpdir }
+    let(:spec) { instance_double(Gem::Specification, default_gem?: false, full_gem_path: File.expand_path("../fixtures/broken", __dir__)) }
+
+    after { FileUtils.rm_rf(output) }
+
+    it "documents the rest and logs that code to the given log, without the stack trace" do
+      log = StringIO.new
+
+      described_class.new(spec).write(output, log)
+
+      expect(log.string).to eq(<<~LOG)
+        [error]: Unhandled exception in YARD::Handlers::Ruby::MixinHandler:
+          in `lib/broken.rb`:9:
+
+        \t9: Broken::Alias.include Broken::Mixin
+
+      LOG
+      expect(Dir.children(output)).to eq(["Broken.md"])
+    end
+  end
+
   context "with a default gem, whose code lives in Ruby's own library directory" do
     let(:output) { Dir.mktmpdir }
     let(:spec) { instance_double(Gem::Specification, default_gem?: true, full_gem_path: "/nonexistent", files: ["exe/sample", "lib/sample.rb"]) }
