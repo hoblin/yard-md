@@ -7,6 +7,13 @@ module YardMd
     include YARD::Templates::Helpers::MethodHelper
 
     SCOPES = {class: ".", instance: "#"}.freeze
+    SEPARATOR = "\n\n"
+
+    Entry = Data.define(:text, :names) do
+      def initialize(text:, names: [])
+        super
+      end
+    end
 
     def initialize(object, verifier, prose)
       @object = object
@@ -15,14 +22,32 @@ module YardMd
     end
 
     def to_s
-      sections = [constants, *SCOPES.keys.map { |scope| attributes(scope) }, *SCOPES.keys.map { |scope| methods(scope) }].compact
-      body = [docs(@object, 1), *sections].reject(&:empty?)
-      return if body.empty?
+      entries.map(&:text).join(SEPARATOR) + "\n" unless entries.empty?
+    end
 
-      [header, *body].join("\n\n") + "\n"
+    def spans
+      first = 1
+      entries.each_with_object({}) do |entry, spans|
+        last = first + entry.text.count("\n")
+        entry.names.each { |name| spans[name] = [first, last] }
+        first = last + SEPARATOR.count("\n")
+      end
     end
 
     private
+
+    def entries
+      @entries ||= begin
+        docs = docs(@object, 1)
+        body = [
+          *(Entry.new(text: docs) unless docs.empty?),
+          *constants,
+          *SCOPES.keys.flat_map { |scope| attributes(scope) },
+          *SCOPES.keys.flat_map { |scope| methods(scope) }
+        ]
+        body.empty? ? [] : [Entry.new(text: header), *body]
+      end
+    end
 
     def header
       title = @object.root? ? "# Top-level namespace" : "# #{@object.type} #{@object.path}"
@@ -47,7 +72,7 @@ module YardMd
     def constant_entry(constant)
       value = constant.value.to_s
       heading = value.include?("\n") ? "### #{constant.name}\n\n```ruby\n#{constant.name} = #{value}\n```" : "### #{constant.name} = #{value}"
-      [heading, docs(constant, 3)].reject(&:empty?).join("\n\n")
+      Entry.new(text: [heading, docs(constant, 3)].reject(&:empty?).join(SEPARATOR))
     end
 
     def attributes(scope)
@@ -59,7 +84,7 @@ module YardMd
         elsif reader then " (read-only)"
         else " (write-only)"
         end
-        ["### #{SCOPES[scope]}#{name}#{access}", docs(reader || writer, 3), aliases([reader, writer].compact)].compact.reject(&:empty?).join("\n\n")
+        named_entry([reader, writer].compact, ["### #{SCOPES[scope]}#{name}#{access}", docs(reader || writer, 3)])
       end
       section("#{scope.capitalize} attributes", entries)
     end
@@ -76,15 +101,19 @@ module YardMd
       block = format_block(method)
       heading += " #{block}" unless block.empty?
       heading += " (#{method.visibility})" unless method.visibility == :public
-      [heading, docs(method, 3), aliases([method])].compact.reject(&:empty?).join("\n\n")
+      named_entry([method], [heading, docs(method, 3)])
     end
 
-    def aliases(methods)
-      list("Also known as", @verifier.run(methods.flat_map(&:aliases)).map(&:name))
+    def named_entry(methods, parts)
+      aliases = @verifier.run(methods.flat_map(&:aliases))
+      Entry.new(
+        text: [*parts, list("Also known as", aliases.map(&:name))].compact.reject(&:empty?).join(SEPARATOR),
+        names: (methods + aliases).map { |method| "#{SCOPES[method.scope]}#{method.name}" }
+      )
     end
 
     def section(title, entries)
-      "## #{title}\n\n#{entries.join("\n\n")}" if entries.any?
+      entries.empty? ? [] : [Entry.new(text: "## #{title}"), *entries]
     end
 
     def docs(object, level)

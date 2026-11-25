@@ -9,9 +9,10 @@ parser = OptionParser.new(<<~HELP)
 
   Run in a project. Documents every gem its bundle resolves on this platform
   as Markdown, each into <output dir>/<gem>-<version>/: a page per class and
-  module, the README and the files its .yardopts names, and its doc/, docs/,
-  example(s)/ and sample(s)/ directories. A gem whose directory exists is
-  skipped, so the output directory is a cache several projects can share.
+  module, the index mdri reads, the README and the files its .yardopts
+  names, and its doc/, docs/, example(s)/ and sample(s)/ directories. A gem
+  whose directory exists is skipped, so the output directory is a cache several
+  projects can share.
 
   The output directory defaults to gem-docs/ in XDG_CACHE_HOME, or in ~/.cache
   when that is unset, empty or relative: here, #{YardMd::CACHE}.
