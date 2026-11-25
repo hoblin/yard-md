@@ -1,0 +1,38 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "optparse"
+require "yard_md"
+
+parser = OptionParser.new(<<~HELP)
+  Usage: yard-md-ri <Constant>[#method|.method] [output dir]
+
+  Run in a project. Reads the documentation yard-md wrote into <output dir>
+  for the gems its bundle resolves on this platform, at those versions:
+
+    yard-md-ri Faraday                   its classes and modules, then its methods
+    yard-md-ri Faraday::Connection#get   that instance method's documentation
+    yard-md-ri Faraday.new               that class method's documentation
+
+  Every gem in the bundle answers, so a namespace several gems add to lists
+  them all, and a class a gem reopens, such as String, answers for that gem.
+
+  The output directory defaults to gem-docs/ in XDG_CACHE_HOME, or in ~/.cache
+  when that is unset, empty or relative: here, #{YardMd::CACHE}.
+
+  Prints the answer and writes nothing. When nothing in the bundle documents
+  what it is asked, says so on stderr and exits non-zero.
+
+  Options: -h, --help shows this; -v, --version prints the version.
+HELP
+parser.version = YardMd::VERSION
+
+begin
+  address, *output = parser.parse(ARGV)
+  abort parser.help unless address && output.size <= 1
+  answer = YardMd::Bundle.new(*output).read(address)
+  abort "yard-md-ri: nothing in the bundle documents #{address}" unless answer
+  print answer
+rescue OptionParser::ParseError, Bundler::BundlerError
+  parser.abort
+end

@@ -65,4 +65,46 @@ RSpec.describe YardMd::Bundle do
       expect(Dir.children(File.join(cache, "sample-0.1.0"))).to eq(["theirs"])
     end
   end
+
+  describe "#read" do
+    let(:specs) { [sample, gem_spec("addon", "1.0.0", File.expand_path("../fixtures/addon", __dir__))] }
+
+    before { expect { bundle.document }.to output.to_stdout }
+
+    it "lists a namespace's classes and modules from every gem that adds to it" do
+      expect(bundle.read("Sample")).to eq("Sample::Empty\nSample::Gadget\nSample::Notes\nSample::Widget\n")
+    end
+
+    it "lists a class's methods, attribute accessors and aliases, in the order of its page" do
+      expect(bundle.read("Sample::Widget").lines(chomp: true)).to eq(%w[
+        #color #color= #hue #finish= #size .find #forget #initialize #paint #repaint #resize
+      ])
+    end
+
+    it "answers a method with its block of the page and nothing else" do
+      expect(bundle.read("Sample::Widget.find")).to eq("### .find(color)\n\nFinds a widget by color.\n\nDeprecated: Use `.where` instead.\n")
+      expect(bundle.read("Sample::Widget#forget")).to eq("### #forget\n\nForgets the widget.\n")
+    end
+
+    it "answers an alias with the block it belongs to" do
+      expect(bundle.read("Sample::Widget#repaint")).to eq(bundle.read("Sample::Widget#paint")).and start_with("### #paint(")
+      expect(bundle.read("Sample::Widget#hue")).to eq(bundle.read("Sample::Widget#color=")).and start_with("### #color\n")
+    end
+
+    it "answers for a core class a gem reopens" do
+      expect(bundle.read("String")).to eq("#squish\n")
+      expect(bundle.read("String#squish")).to eq("### #squish\n\nSqueezes the string's whitespace.\n")
+    end
+
+    it "answers nothing for what no gem documents" do
+      expect([bundle.read("Absent"), bundle.read("Sample::Widget#absent"), bundle.read("Absent#paint")]).to all(be_nil)
+    end
+
+    it "reads only the versions the bundle resolves" do
+      FileUtils.mkdir_p(File.join(cache, "sample-9.9.9"))
+      File.write(File.join(cache, "sample-9.9.9", YardMd::INDEX), JSON.generate("Sample::Future" => {}))
+
+      expect(bundle.read("Sample")).not_to include("Sample::Future")
+    end
+  end
 end

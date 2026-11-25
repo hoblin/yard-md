@@ -11,8 +11,10 @@ module YardMd
   #
   # @example
   #   YardMd::Bundle.new.document
+  #   YardMd::Bundle.new.read("YARD::Registry.at")
   class Bundle
-    # @param output [String] the directory to write into; created when missing
+    # @param output [String] the directory to write into and read from; created
+    #   when missing
     def initialize(output = CACHE)
       @output = File.expand_path(output)
     end
@@ -24,16 +26,61 @@ module YardMd
     # @raise [Bundler::BundlerError] when the bundle cannot be resolved, e.g.
     #   a gem in it is not installed
     def document
-      Bundler.ui = Bundler::UI::Silent.new
       FileUtils.mkdir_p(@output)
-      Bundler.definition.specs.map { |spec| build(spec) }.all?
+      specs.map { |spec| build(spec) }.all?
+    end
+
+    # Answers from the documentation {#document} wrote for the bundle's gems, at
+    # the versions it resolves. A gem documented by a yard-md without the index
+    # does not answer.
+    #
+    # @param address [String] a constant, or a method of one:
+    #   <tt>Faraday</tt>, <tt>Faraday::Connection#get</tt>, <tt>Faraday.new</tt>
+    # @return [String] for a constant, its classes and modules, then its
+    #   methods, one per line, from every gem that has them; for a method, its
+    #   block of the page, from every gem that documents it
+    # @return [nil] when no gem documents it
+    # @raise [Bundler::BundlerError] when the bundle cannot be resolved
+    def read(address)
+      constant, method = address.split(/(?=[#.])/, 2)
+      indexes = specs.filter_map do |spec|
+        index = File.join(directory(spec), INDEX)
+        [directory(spec), JSON.parse(File.read(index))] if File.exist?(index)
+      end
+      method ? method_blocks(indexes, constant, method) : listing(indexes, constant)
     end
 
     private
 
+    def specs
+      Bundler.ui = Bundler::UI::Silent.new
+      Bundler.definition.specs
+    end
+
+    def directory(spec)
+      File.join(@output, "#{spec.name}-#{spec.version}")
+    end
+
+    def listing(indexes, constant)
+      children = indexes.flat_map { |_, index| index.keys.select { |path| path != constant && path.rpartition("::").first == constant } }
+      entries = indexes.filter_map { |_, index| index[constant] }
+      return if children.empty? && entries.empty?
+
+      [*children.uniq.sort, *entries.flat_map { |entry| entry.fetch("methods", {}).keys }.uniq].map { |line| "#{line}\n" }.join
+    end
+
+    def method_blocks(indexes, constant, method)
+      blocks = indexes.filter_map do |directory, index|
+        page, methods = index[constant]&.values_at("page", "methods")
+        first, last = methods&.dig(method)
+        File.readlines(File.join(directory, page))[(first - 1)..(last - 1)].join if first
+      end
+      blocks.join("\n") unless blocks.empty?
+    end
+
     def build(spec)
-      name = "#{spec.name}-#{spec.version}"
-      target = File.join(@output, name)
+      target = directory(spec)
+      name = File.basename(target)
       return true if File.exist?(target)
 
       staging = Dir.mktmpdir(".#{name}-", @output)

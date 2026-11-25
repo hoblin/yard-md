@@ -15,14 +15,34 @@ module YardMd
     end
 
     def to_s
-      sections = [constants, *SCOPES.keys.map { |scope| attributes(scope) }, *SCOPES.keys.map { |scope| methods(scope) }].compact
-      body = [docs(@object, 1), *sections].reject(&:empty?)
-      return if body.empty?
+      render.first
+    end
 
-      [header, *body].join("\n\n") + "\n"
+    def blocks
+      render.last
     end
 
     private
+
+    def render
+      @render ||= begin
+        sections = [constants, *SCOPES.keys.map { |scope| attributes(scope) }, *SCOPES.keys.map { |scope| methods(scope) }].compact
+        docs = docs(@object, 1)
+        parts = [[[], header]]
+        parts << [[], docs] unless docs.empty?
+        sections.each { |title, entries| parts.push([[], title], *entries) }
+        (parts.size == 1) ? [nil, {}] : [parts.map(&:last).join("\n\n") + "\n", lines(parts)]
+      end
+    end
+
+    def lines(parts)
+      first = 1
+      parts.each_with_object({}) do |(names, text), blocks|
+        last = first + text.count("\n")
+        names.each { |name| blocks[name] = [first, last] }
+        first = last + 2
+      end
+    end
 
     def header
       title = @object.root? ? "# Top-level namespace" : "# #{@object.type} #{@object.path}"
@@ -47,7 +67,7 @@ module YardMd
     def constant_entry(constant)
       value = constant.value.to_s
       heading = value.include?("\n") ? "### #{constant.name}\n\n```ruby\n#{constant.name} = #{value}\n```" : "### #{constant.name} = #{value}"
-      [heading, docs(constant, 3)].reject(&:empty?).join("\n\n")
+      [[], [heading, docs(constant, 3)].reject(&:empty?).join("\n\n")]
     end
 
     def attributes(scope)
@@ -59,7 +79,7 @@ module YardMd
         elsif reader then " (read-only)"
         else " (write-only)"
         end
-        ["### #{SCOPES[scope]}#{name}#{access}", docs(reader || writer, 3), aliases([reader, writer].compact)].compact.reject(&:empty?).join("\n\n")
+        addressed([reader, writer].compact, ["####{SCOPES[scope]}#{name}#{access}", docs(reader || writer, 3)])
       end
       section("#{scope.capitalize} attributes", entries)
     end
@@ -76,15 +96,17 @@ module YardMd
       block = format_block(method)
       heading += " #{block}" unless block.empty?
       heading += " (#{method.visibility})" unless method.visibility == :public
-      [heading, docs(method, 3), aliases([method])].compact.reject(&:empty?).join("\n\n")
+      addressed([method], [heading, docs(method, 3)])
     end
 
-    def aliases(methods)
-      list("Also known as", @verifier.run(methods.flat_map(&:aliases)).map(&:name))
+    def addressed(methods, parts)
+      aliases = @verifier.run(methods.flat_map(&:aliases))
+      names = (methods + aliases).map { |method| "#{SCOPES[method.scope]}#{method.name}" }
+      [names, [*parts, list("Also known as", aliases.map(&:name))].compact.reject(&:empty?).join("\n\n")]
     end
 
     def section(title, entries)
-      "## #{title}\n\n#{entries.join("\n\n")}" if entries.any?
+      ["## #{title}", entries] if entries.any?
     end
 
     def docs(object, level)

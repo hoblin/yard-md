@@ -42,10 +42,14 @@ module YardMd
     def pages(yardoc, output)
       serializer = YARD::Serializers::FileSystemSerializer.new(basepath: output, extension: "md")
       prose = Prose.new(yardoc.options.markup)
-      yardoc.options.verifier.run(yardoc.all_objects).each do |object|
-        page = Page.new(object, yardoc.options.verifier, prose).to_s
-        serializer.serialize(object, page) if page
+      index = yardoc.options.verifier.run(yardoc.all_objects).to_h do |object|
+        page = Page.new(object, yardoc.options.verifier, prose)
+        next [object.path, {}] unless page.to_s
+
+        serializer.serialize(object, page.to_s)
+        [object.path, {page: serializer.serialized_path(object), methods: page.blocks}]
       end
+      File.write(File.join(output, INDEX), JSON.generate(index))
     end
 
     def extra_files(files, output)

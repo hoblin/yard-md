@@ -1,25 +1,12 @@
 # frozen_string_literal: true
 
-require "open3"
-
 RSpec.describe "exe/yard-md" do
-  let(:root) { File.expand_path("..", __dir__) }
-  let(:load_path) { [File.join(root, "lib"), *Gem.loaded_specs["yard"].full_require_paths].map { |path| "-I#{path}" } }
+  include_context "with the fixture project"
+
   let(:output) { File.join(@project, "docs") }
 
-  around do |example|
-    Dir.mktmpdir do |dir|
-      FileUtils.cp_r(Dir.glob(File.join(root, "spec/fixtures/*")), dir)
-      @project = File.join(dir, "project")
-      @home = dir
-      example.run
-    end
-  end
-
-  def yard_md(*args, chdir: @project, env: {"XDG_CACHE_HOME" => File.join(@home, "xdg")})
-    Bundler.with_unbundled_env do
-      Open3.capture3(env, RbConfig.ruby, *load_path, File.join(root, "exe/yard-md"), *args, chdir: chdir)
-    end
+  def yard_md(...)
+    run("yard-md", ...)
   end
 
   def snapshot

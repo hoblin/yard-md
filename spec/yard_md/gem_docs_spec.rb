@@ -16,6 +16,10 @@ RSpec.describe YardMd::GemDocs do
     File.read(File.join(@output, path))
   end
 
+  def index
+    JSON.parse(page(YardMd::INDEX))
+  end
+
   def written
     Dir.glob("**/*", base: @output).select { |path| File.file?(File.join(@output, path)) }.sort
   end
@@ -188,6 +192,27 @@ RSpec.describe YardMd::GemDocs do
       expect(page("Sample/Widget.md")).to include("### #initialize(color)\n\nCreates a widget.\n\nParameters:\n- `color` (`Symbol`) — the color\n\n### #paint")
     end
 
+    it "indexes each class and module with its page, a namespace that documents nothing without one" do
+      expect(index.transform_values { |entry| entry["page"] }).to eq(
+        "" => nil, "Sample" => "Sample.md", "Sample::Empty" => nil, "Sample::Empty::Inner" => "Sample/Empty/Inner.md",
+        "Sample::Notes" => "Sample/Notes.md", "Sample::Widget" => "Sample/Widget.md"
+      )
+    end
+
+    it "indexes the lines of every block a method has on its page" do
+      widget = page("Sample/Widget.md").lines
+
+      blocks = index.dig("Sample::Widget", "methods").transform_values { |first, last| widget[(first - 1)..(last - 1)].join }
+
+      expect(blocks).to include(
+        "#initialize" => "### #initialize(color)\n\nCreates a widget.\n\nParameters:\n- `color` (`Symbol`) — the color\n",
+        "#size" => "### #size (read-only)\n\nThe widget's size.\n",
+        ".find" => "### .find(color)\n\nFinds a widget by color.\n\nDeprecated: Use `.where` instead.\n"
+      )
+      expect(blocks["#paint"]).to start_with("### #paint(").and end_with("Also known as: `repaint`\n")
+      expect(blocks.values).to all(start_with("### ").and(end_with("\n")).and(satisfy { |block| !block.end_with?("\n\n") }))
+    end
+
     it "leaves out the API that is not public" do
       expect(page("Sample/Widget.md")).not_to match(/internal|hidden|compare|secret|daub|repaint\(/)
       expect(written).not_to include("Sample/Internal.md")
@@ -211,7 +236,7 @@ RSpec.describe YardMd::GemDocs do
 
       described_class.new(spec).write(output)
 
-      expect(Dir.children(output)).to eq(["Own.md"])
+      expect(Dir.children(output)).to contain_exactly("Own.md", YardMd::INDEX)
     end
   end
 
