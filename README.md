@@ -23,19 +23,19 @@ Each gem's directory holds:
 - a page per class and module YARD documents, at YARD's own paths (`ActiveRecord/FinderMethods.md`): the public API, plus whatever visibility the gem's `.yardopts` asks for, without `@private` and `@api private`;
 - its README and the files its `.yardopts` names, as they are;
 - its `doc/`, `docs/`, `examples/`, `example/`, `samples/` and `sample/` directories, copied whole;
-- `.index.json`, the index `yard-md-ri` reads.
+- `.index.json`, the index `mdri` reads.
 
 `yard-md --help` says the same in short.
 
 ## Reading
 
 ```sh
-yard-md-ri Faraday                   # its classes and modules, then its methods
-yard-md-ri Faraday::Connection#get   # that instance method's documentation
-yard-md-ri Faraday.new               # that class method's documentation
+mdri Faraday                   # its classes and modules, then its methods
+mdri Faraday::Connection#get   # that instance method's documentation
+mdri Faraday.new               # that class method's documentation
 ```
 
-Run in the same project, `yard-md-ri` answers from the documentation yard-md wrote for its bundle, at the versions the bundle resolves, addressed by constant as YARD's `yri` is. Every gem in the bundle answers: a namespace several gems add to (`Rails`) lists them all, and a class a gem reopens (`String`, by activesupport) answers with that gem's methods. It reads the output directory yard-md writes, or the one given after the constant, and writes nothing. It answers from an index yard-md writes beside each gem's pages, so a gem documented by an earlier yard-md does not answer until its directory is removed and documented again. `yard-md-ri --help` says the same in short.
+Run in the same project, `mdri` answers from the documentation yard-md wrote for its bundle, at the versions the bundle resolves, addressed by constant as YARD's `yri` is. Every gem in the bundle answers: a namespace several gems add to (`Rails`) lists them all, and a class a gem reopens (`String`, by activesupport) answers with that gem's methods. It reads the output directory yard-md writes, or the one given after the constant, and writes nothing. It answers from an index yard-md writes beside each gem's pages, so a gem documented by an earlier yard-md does not answer until its directory is removed and documented again. `mdri --help` says the same in short.
 
 Docstrings written in RDoc markup (`+code+`, `<tt>`, `*bold*`, `_em_`, `= Heading`, labelled lists) come out in Markdown; code examples are left as they are.
 

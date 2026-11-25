@@ -5,14 +5,14 @@ require "optparse"
 require "yard_md"
 
 parser = OptionParser.new(<<~HELP)
-  Usage: yard-md-ri <Constant>[#method|.method] [output dir]
+  Usage: mdri <Constant>[#method|.method] [output dir]
 
   Run in a project. Reads the documentation yard-md wrote into <output dir>
   for the gems its bundle resolves on this platform, at those versions:
 
-    yard-md-ri Faraday                   its classes and modules, then its methods
-    yard-md-ri Faraday::Connection#get   that instance method's documentation
-    yard-md-ri Faraday.new               that class method's documentation
+    mdri Faraday                   its classes and modules, then its methods
+    mdri Faraday::Connection#get   that instance method's documentation
+    mdri Faraday.new               that class method's documentation
 
   Every gem in the bundle answers, so a namespace several gems add to lists
   them all, and a class a gem reopens, such as String, answers for that gem.
@@ -33,7 +33,7 @@ begin
   address, *output = parser.parse(ARGV)
   abort parser.help unless address && output.size <= 1
   answer = YardMd::Bundle.new(*output).read(address)
-  abort "yard-md-ri: nothing in the bundle documents #{address}" unless answer
+  abort "mdri: nothing in the bundle documents #{address}" unless answer
   print answer
 rescue OptionParser::ParseError, Bundler::BundlerError
   parser.abort
