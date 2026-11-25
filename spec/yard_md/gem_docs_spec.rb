@@ -210,7 +210,16 @@ RSpec.describe YardMd::GemDocs do
         ".find" => "### .find(color)\n\nFinds a widget by color.\n\nDeprecated: Use `.where` instead.\n"
       )
       expect(blocks["#paint"]).to start_with("### #paint(").and end_with("Also known as: `repaint`\n")
-      expect(blocks.values).to all(start_with("### ").and(end_with("\n")).and(satisfy { |block| !block.end_with?("\n\n") }))
+    end
+
+    it "indexes, on every page, lines that start at a method's heading and end at its block's last line" do
+      blocks = index.values.select { |entry| entry["page"] }.flat_map do |entry|
+        lines = page(entry["page"]).lines
+        entry["methods"].values.map { |first, last| lines[(first - 1)...last].join }
+      end
+
+      expect(blocks).not_to be_empty
+      expect(blocks).to all(start_with("### ").and(end_with("\n")).and(satisfy { |block| !block.end_with?("\n\n") }))
     end
 
     it "leaves out the API that is not public" do

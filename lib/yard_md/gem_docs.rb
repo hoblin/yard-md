@@ -48,10 +48,11 @@ module YardMd
       prose = Prose.new(yardoc.options.markup)
       index = yardoc.options.verifier.run(yardoc.all_objects).to_h do |object|
         page = Page.new(object, yardoc.options.verifier, prose)
-        next [object.path, {}] unless page.to_s
+        markdown = page.to_s
+        next [object.path, {}] unless markdown
 
-        serializer.serialize(object, page.to_s)
-        [object.path, {page: serializer.serialized_path(object), methods: page.blocks}]
+        serializer.serialize(object, markdown)
+        [object.path, {page: serializer.serialized_path(object), methods: page.spans}]
       end
       File.write(File.join(output, INDEX), JSON.generate(index))
     end

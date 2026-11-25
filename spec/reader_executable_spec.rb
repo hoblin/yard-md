@@ -8,7 +8,7 @@ RSpec.describe "exe/yard-md-ri" do
   end
 
   describe "in a project yard-md documented" do
-    before { run("yard-md") }
+    before { expect(run("yard-md").last).to be_success }
 
     it "lists a namespace's classes and modules" do
       out, err, status = yard_md_ri("Sample")
@@ -31,6 +31,23 @@ RSpec.describe "exe/yard-md-ri" do
       expect(out).to be_empty
       expect(err).to eq("yard-md-ri: nothing in the bundle documents Sample::Widget#nope\n")
     end
+  end
+
+  it "says in one line why a bundle it cannot resolve stops it" do
+    File.write(File.join(@project, "Gemfile"), %(gem "absent", path: "../absent"\n))
+
+    _, err, status = yard_md_ri("Sample")
+
+    expect(status).not_to be_success
+    expect(err.lines.size).to eq(1)
+    expect(err).to start_with("yard-md-ri: ").and include("absent")
+  end
+
+  it "prints its version" do
+    out, _, status = yard_md_ri("--version")
+
+    expect(status).to be_success
+    expect(out).to eq("yard-md-ri #{YardMd::VERSION}\n")
   end
 
   it "reads from the directory it is given" do
@@ -56,8 +73,9 @@ RSpec.describe "exe/yard-md-ri" do
 
   it "answers anything but one constant with its help, and runs nothing" do
     [[], %w[One two three]].each do |args|
-      out, err, status = yard_md_ri(*args)
+      out, err, status = nil
 
+      expect { out, err, status = yard_md_ri(*args) }.not_to change { Dir.glob("**/*", base: @home) }, args.inspect
       expect(status).not_to be_success, args.inspect
       expect(out).to be_empty
       expect(err).to start_with("Usage: yard-md-ri ")

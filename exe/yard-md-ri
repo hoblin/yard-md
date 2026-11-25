@@ -21,7 +21,9 @@ parser = OptionParser.new(<<~HELP)
   when that is unset, empty or relative: here, #{YardMd::CACHE}.
 
   Prints the answer and writes nothing. When nothing in the bundle documents
-  what it is asked, says so on stderr and exits non-zero.
+  what it is asked, says so on stderr and exits non-zero. A gem answers once
+  yard-md has documented it; one documented by yard-md 0.1.0 answers after its
+  directory is removed and yard-md runs again.
 
   Options: -h, --help shows this; -v, --version prints the version.
 HELP

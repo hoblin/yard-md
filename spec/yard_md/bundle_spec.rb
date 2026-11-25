@@ -92,13 +92,13 @@ RSpec.describe YardMd::Bundle do
 
     before { expect { bundle.document }.to output.to_stdout }
 
-    it "lists a namespace's classes and modules from every gem that adds to it" do
+    it "lists a namespace's classes and modules from every gem that adds to it, each once" do
       expect(bundle.read("Sample")).to eq("Sample::Empty\nSample::Gadget\nSample::Notes\nSample::Widget\n")
     end
 
-    it "lists a class's methods, attribute accessors and aliases, in the order of its page" do
+    it "lists a class's methods, attribute accessors and aliases in the order of its pages, each once" do
       expect(bundle.read("Sample::Widget").lines(chomp: true)).to eq(%w[
-        #color #color= #hue #finish= #size .find #forget #initialize #paint #repaint #resize
+        #color #color= #hue #finish= #size .find #forget #initialize #paint #repaint #resize .paint #polish
       ])
     end
 
@@ -107,8 +107,17 @@ RSpec.describe YardMd::Bundle do
       expect(bundle.read("Sample::Widget#forget")).to eq("### #forget\n\nForgets the widget.\n")
     end
 
+    it "answers a method with the block from every gem that documents it" do
+      expect(bundle.read("Sample::Widget#paint")).to start_with("### #paint(color, options = {})")
+        .and end_with("Also known as: `repaint`\n\n### #paint\n\nPaints the widget again.\n")
+    end
+
+    it "tells a class method from an instance method of the same name" do
+      expect(bundle.read("Sample::Widget.paint")).to eq("### .paint\n\nPaints every widget.\n")
+    end
+
     it "answers an alias with the block it belongs to" do
-      expect(bundle.read("Sample::Widget#repaint")).to eq(bundle.read("Sample::Widget#paint")).and start_with("### #paint(")
+      expect(bundle.read("Sample::Widget#repaint")).to start_with("### #paint(color, options = {})").and end_with("Also known as: `repaint`\n")
       expect(bundle.read("Sample::Widget#hue")).to eq(bundle.read("Sample::Widget#color=")).and start_with("### #color\n")
     end
 
@@ -117,8 +126,22 @@ RSpec.describe YardMd::Bundle do
       expect(bundle.read("String#squish")).to eq("### #squish\n\nSqueezes the string's whitespace.\n")
     end
 
+    it "answers for the top-level namespace when the constant is left out" do
+      expect(bundle.read("")).to eq("Sample\nString\n#tidy\n")
+      expect(bundle.read("#tidy")).to eq("### #tidy\n\nTidies everything up.\n")
+    end
+
     it "answers nothing for what no gem documents" do
       expect([bundle.read("Absent"), bundle.read("Sample::Widget#absent"), bundle.read("Absent#paint")]).to all(be_nil)
+    end
+
+    it "answers from the other gems when one has no index or no directory" do
+      FileUtils.mkdir_p(File.join(cache, "stale-1.0.0"))
+      allow(Bundler).to receive(:definition).and_return(instance_double(Bundler::Definition, specs: [
+        gem_spec("stale", "1.0.0", "/nonexistent"), gem_spec("absent", "1.0.0", "/nonexistent"), *specs
+      ]))
+
+      expect(bundle.read("Sample::Widget#forget")).to eq("### #forget\n\nForgets the widget.\n")
     end
 
     it "reads only the versions the bundle resolves" do
