@@ -35,9 +35,12 @@ module YardMd
     def parse(log)
       YARD::Config.options[:safe_mode] = true
       YARD::Logger.instance.io = log
-      YARD::Logger.instance.show_backtraces = false
       YARD::Registry.clear
-      YARD::CLI::Yardoc.new.tap { |yardoc| yardoc.run(*YARDOC_ARGS, *sources) }
+      YARD::CLI::Yardoc.new.tap do |yardoc|
+        yardoc.parse_arguments(*YARDOC_ARGS, *sources)
+        YARD::Logger.instance.show_backtraces = false
+        yardoc.run(nil)
+      end
     end
 
     def pages(yardoc, output)
