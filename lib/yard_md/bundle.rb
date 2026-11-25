@@ -11,8 +11,10 @@ module YardMd
   #
   # @example
   #   YardMd::Bundle.new.document
+  #   YardMd::Bundle.new.read("YARD::Registry.at")
   class Bundle
-    # @param output [String] the directory to write into; created when missing
+    # @param output [String] the directory to write into, created when missing,
+    #   and read from
     # @param force [Boolean] rebuild the bundle's gems whose directories exist,
     #   replacing each only once its rebuild succeeds; other directories in
     #   +output+ are left alone
@@ -31,16 +33,63 @@ module YardMd
     # @raise [Bundler::BundlerError] when the bundle cannot be resolved, e.g.
     #   a gem in it is not installed
     def document
-      Bundler.ui = Bundler::UI::Silent.new
       FileUtils.mkdir_p(@output)
-      Bundler.definition.specs.map { |spec| build(spec) }.all?
+      specs.map { |spec| build(spec) }.all?
+    end
+
+    # Answers from the documentation {#document} wrote for the bundle's gems, at
+    # the versions it resolves. A gem not documented yet, or documented by
+    # yard-md 0.1.0, which wrote no index, does not answer.
+    #
+    # @param address [String] a constant, or a method of one:
+    #   <tt>Faraday</tt>, <tt>Faraday::Connection#get</tt>, <tt>Faraday.new</tt>;
+    #   an empty constant is the top-level namespace: <tt>""</tt>, <tt>#puts</tt>
+    # @return [String] for a constant, its classes and modules, then its
+    #   methods, one per line, from every gem that has them, empty when it has
+    #   neither; for a method, its block of the page, from every gem that
+    #   documents it
+    # @return [nil] when no gem documents it
+    # @raise [Bundler::BundlerError] when the bundle cannot be resolved
+    def read(address)
+      constant, method = address.match(/\A([^#.]*)(.*)\z/m).captures
+      indexes = specs.filter_map do |spec|
+        directory = directory(spec)
+        index = File.join(directory, INDEX)
+        [directory, JSON.parse(File.read(index))] if File.exist?(index)
+      end
+      method.empty? ? listing(indexes, constant) : method_blocks(indexes, constant, method)
     end
 
     private
 
+    def specs
+      Bundler.ui = Bundler::UI::Silent.new
+      Bundler.definition.specs
+    end
+
+    def directory(spec)
+      File.join(@output, "#{spec.name}-#{spec.version}")
+    end
+
+    def listing(indexes, constant)
+      children = indexes.flat_map { |_, index| index.keys.select { |path| path != constant && path.rpartition("::").first == constant } }
+      entries = indexes.filter_map { |_, index| index[constant] }
+      return if children.empty? && entries.empty?
+
+      [*children.uniq.sort, *entries.flat_map { |entry| entry.fetch("methods", {}).keys }.uniq].map { |line| "#{line}\n" }.join
+    end
+
+    def method_blocks(indexes, constant, method)
+      blocks = indexes.filter_map do |directory, index|
+        first, last = index.dig(constant, "methods", method)
+        File.readlines(File.join(directory, index.dig(constant, "page")))[(first - 1)...last].join if first
+      end
+      blocks.join("\n") unless blocks.empty?
+    end
+
     def build(spec)
-      name = "#{spec.name}-#{spec.version}"
-      target = File.join(@output, name)
+      target = directory(spec)
+      name = File.basename(target)
       return true if !@force && File.exist?(target)
 
       staging = Dir.mktmpdir(".#{name}-", @output)

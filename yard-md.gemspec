@@ -27,7 +27,7 @@ Gem::Specification.new do |spec|
   spec.files = Dir.glob("lib/**/*") + Dir.glob("exe/**/*") + %w[README.md LICENSE]
   spec.require_paths = ["lib"]
   spec.bindir = "exe"
-  spec.executables = ["yard-md"]
+  spec.executables = ["yard-md", "mdri"]
 
   spec.add_dependency "yard", "~> 0.9"
 end

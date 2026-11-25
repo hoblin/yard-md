@@ -2,6 +2,7 @@
 
 require "bundler"
 require "fileutils"
+require "json"
 require "stringio"
 require "tmpdir"
 require "yard"
@@ -20,4 +21,9 @@ module YardMd
 
   # Where the documentation goes unless told otherwise.
   CACHE = File.join(cache_home, "gem-docs")
+
+  # The file in each gem's directory that {Bundle#read} answers from, beside
+  # the pages it indexes.
+  # @api private
+  INDEX = ".index.json"
 end
