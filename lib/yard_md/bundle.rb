@@ -20,7 +20,7 @@ module YardMd
     # Documents each gem not documented yet, printing its <tt><gem>-<version></tt> to
     # stdout. A gem that fails is reported on stderr and skipped; the rest go on.
     # The code YARD could not process in a gem is reported on stderr under the
-    # gem's name, without YARD's stack traces.
+    # gem's name, without YARD's stack traces; the gem still counts as documented.
     #
     # @return [Boolean] whether every gem is documented
     # @raise [Bundler::BundlerError] when the bundle cannot be resolved, e.g.
@@ -51,12 +51,13 @@ module YardMd
     def write(spec, name, staging)
       # YARD's registry, tag library and logger are process-wide, and a gem's
       # .yardopts changes them; a process per gem keeps one gem out of the next.
+      log = StringIO.new
       pid = fork do
-        log = GemDocs.new(spec).write(staging)
-        warn "yard-md: #{name}:", log unless log.empty?
+        GemDocs.new(spec).write(staging, log)
+        warn "yard-md: #{name}:", *log.string.lines unless log.string.empty?
         exit!(true)
       rescue => error
-        warn "yard-md: #{name}: #{error.class}: #{error.message}"
+        warn "yard-md: #{name}: #{error.class}: #{error.message}", *log.string.lines
         exit!(false)
       end
       Process.wait2(pid).last.success?

@@ -47,6 +47,13 @@ RSpec.describe YardMd::Bundle do
 
         expect(result).to be(true)
       end
+
+      it "reports that code with the failure when the gem then cannot be documented" do
+        allow(YardMd::Page).to receive(:new).and_raise("unrenderable")
+
+        expect { expect(bundle.document).to be(false) }
+          .to output(/\Ayard-md: broken-1\.0\.0: RuntimeError: unrenderable\n\[error\]: Unhandled exception in YARD::Handlers::Ruby::MixinHandler:/).to_stderr_from_any_process
+      end
     end
 
     context "when a gem's .yardopts changes YARD's settings" do

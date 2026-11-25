@@ -216,24 +216,24 @@ RSpec.describe YardMd::GemDocs do
   end
 
   context "when YARD cannot process some of a gem's code" do
-    let(:pages) { Dir.mktmpdir }
+    let(:output) { Dir.mktmpdir }
     let(:spec) { instance_double(Gem::Specification, default_gem?: false, full_gem_path: File.expand_path("../fixtures/broken", __dir__)) }
 
-    after { FileUtils.rm_rf(pages) }
+    after { FileUtils.rm_rf(output) }
 
-    it "documents the rest and returns what YARD logged about it, without the stack trace" do
-      log = nil
+    it "documents the rest and logs that code to the given log, without the stack trace" do
+      log = StringIO.new
 
-      expect { log = described_class.new(spec).write(pages) }.not_to output.to_stderr
+      described_class.new(spec).write(output, log)
 
-      expect(log).to eq(<<~LOG)
+      expect(log.string).to eq(<<~LOG)
         [error]: Unhandled exception in YARD::Handlers::Ruby::MixinHandler:
           in `lib/broken.rb`:9:
 
         \t9: Broken::Alias.include Broken::Mixin
 
       LOG
-      expect(Dir.children(pages)).to eq(["Broken.md"])
+      expect(Dir.children(output)).to eq(["Broken.md"])
     end
   end
 

@@ -10,16 +10,14 @@ module YardMd
       @spec = spec
     end
 
-    def write(output)
+    def write(output, log = $stderr)
       output = File.expand_path(output)
-      log = StringIO.new
       Dir.chdir(source_root) do
         yardoc = parse(log)
         pages(yardoc, output)
         extra_files(yardoc.options.files, output)
       end
       directories(output)
-      log.string
     end
 
     private

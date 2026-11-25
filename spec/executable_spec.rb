@@ -30,6 +30,7 @@ RSpec.describe "exe/yard-md" do
     out, err, status = yard_md("docs")
 
     expect(status).to be_success, err
+    expect(err).to be_empty
     expect(out.lines(chomp: true)).to contain_exactly("sample-0.1.0", "bundler-#{Bundler::VERSION}")
     expect(Dir.children(output)).to contain_exactly("sample-0.1.0", "bundler-#{Bundler::VERSION}")
     expect(File.read(File.join(output, "sample-0.1.0/Sample/Widget.md"))).to start_with("# class Sample::Widget")
