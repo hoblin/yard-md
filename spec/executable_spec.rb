@@ -49,6 +49,19 @@ RSpec.describe "exe/yard-md" do
     expect(snapshot).to eq(before)
   end
 
+  it "rebuilds every gem of the bundle on --force, and leaves the rest of the output directory alone" do
+    yard_md("docs")
+    FileUtils.touch(File.join(output, "sample-0.1.0/stale.md"))
+    FileUtils.mkdir_p(File.join(output, "other-1.0.0"))
+
+    out, err, status = yard_md("--force", "docs")
+
+    expect(status).to be_success, err
+    expect(out.lines(chomp: true)).to contain_exactly("sample-0.1.0", "bundler-#{Bundler::VERSION}")
+    expect(Dir.children(File.join(output, "sample-0.1.0"))).not_to include("stale.md")
+    expect(Dir.children(output)).to include("other-1.0.0")
+  end
+
   it "says in one line why a bundle it cannot resolve stops it" do
     File.write(File.join(@project, "Gemfile"), %(gem "absent", path: "../absent"\n))
 
@@ -65,8 +78,8 @@ RSpec.describe "exe/yard-md" do
 
       expect { out, err, status = yard_md(flag, chdir: dir) }.not_to change { Dir.children(dir) }, "#{flag} in #{dir}"
       expect(status).to be_success, "#{flag} in #{dir}: #{err}"
-      expect(out).to start_with("Usage: yard-md [output dir]\n")
-        .and include("<output dir>/<gem>-<version>/", ".yardopts", "skipped", "stderr", "exit status", "--version")
+      expect(out).to start_with("Usage: yard-md [--force] [output dir]\n")
+        .and include("<output dir>/<gem>-<version>/", ".yardopts", "skipped", "stderr", "exit status", "--force", "--version")
         .and include("here, #{@home}/xdg/gem-docs.")
     end
   end
@@ -112,6 +125,6 @@ RSpec.describe "exe/yard-md" do
     expect { out, err, status = yard_md("one", "two") }.not_to change { Dir.glob("**/*", base: @home) }
     expect(status).not_to be_success
     expect(out).to be_empty
-    expect(err).to start_with("Usage: yard-md [output dir]\n")
+    expect(err).to start_with("Usage: yard-md [--force] [output dir]\n")
   end
 end

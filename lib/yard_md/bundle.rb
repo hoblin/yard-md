@@ -5,19 +5,23 @@ module YardMd
   # this platform, written as Markdown into one directory per gem version.
   #
   # The output directory is a cache: a gem whose <tt><gem>-<version></tt> directory
-  # exists is skipped, and a directory appears only once its gem is fully
-  # documented, so an interrupted or concurrent run leaves no partial one.
-  # Several projects can share it.
+  # exists is skipped unless forced, and a directory appears only once its gem
+  # is fully documented, so an interrupted or concurrent run leaves no partial
+  # one. Several projects can share it.
   #
   # @example
   #   YardMd::Bundle.new.document
   class Bundle
     # @param output [String] the directory to write into; created when missing
-    def initialize(output = CACHE)
+    # @param force [Boolean] rebuild the bundle's gems whose directories exist,
+    #   replacing each only once its rebuild succeeds; other directories in
+    #   +output+ are left alone
+    def initialize(output = CACHE, force: false)
       @output = File.expand_path(output)
+      @force = force
     end
 
-    # Documents each gem not documented yet, printing its <tt><gem>-<version></tt> to
+    # Documents each gem not documented yet, or every gem when forced, printing its <tt><gem>-<version></tt> to
     # stdout. A gem that fails is reported on stderr and skipped; the rest go on.
     # The code YARD could not process in a gem is reported on stderr under the
     # gem's name, without YARD's stack traces; the gem still counts as documented.
@@ -36,7 +40,7 @@ module YardMd
     def build(spec)
       name = "#{spec.name}-#{spec.version}"
       target = File.join(@output, name)
-      return true if File.exist?(target)
+      return true if !@force && File.exist?(target)
 
       staging = Dir.mktmpdir(".#{name}-", @output)
       return false unless write(spec, name, staging)
@@ -64,6 +68,7 @@ module YardMd
     end
 
     def publish(staging, target)
+      FileUtils.rm_rf(target) if @force
       File.rename(staging, target)
     rescue Errno::EEXIST, Errno::ENOTEMPTY
       nil

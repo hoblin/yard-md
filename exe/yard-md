@@ -5,13 +5,14 @@ require "optparse"
 require "yard_md"
 
 parser = OptionParser.new(<<~HELP)
-  Usage: yard-md [output dir]
+  Usage: yard-md [--force] [output dir]
 
   Run in a project. Documents every gem its bundle resolves on this platform
   as Markdown, each into <output dir>/<gem>-<version>/: a page per class and
   module, the README and the files its .yardopts names, and its doc/, docs/,
   example(s)/ and sample(s)/ directories. A gem whose directory exists is
-  skipped, so the output directory is a cache several projects can share.
+  skipped, so the output directory is a cache several projects can share;
+  --force rebuilds it, and leaves other projects' gems alone.
 
   The output directory defaults to gem-docs/ in XDG_CACHE_HOME, or in ~/.cache
   when that is unset, empty or relative: here, #{YardMd::CACHE}.
@@ -21,14 +22,24 @@ parser = OptionParser.new(<<~HELP)
   What YARD could not process in a gem is reported on stderr under its name,
   and the gem still counts as documented.
 
-  Options: -h, --help shows this; -v, --version prints the version.
+  Options:
 HELP
 parser.version = YardMd::VERSION
+parser.on("--force", "rebuilds the bundle's gems whose directories exist")
+parser.on_tail("-h", "--help", "shows this") do
+  puts parser.help
+  exit
+end
+parser.on_tail("-v", "--version", "prints the version") do
+  puts parser.ver
+  exit
+end
 
 begin
-  arguments = parser.parse(ARGV)
+  options = {}
+  arguments = parser.parse(ARGV, into: options)
   abort parser.help if arguments.size > 1
-  exit YardMd::Bundle.new(*arguments).document
+  exit YardMd::Bundle.new(*arguments, **options).document
 rescue OptionParser::ParseError, Bundler::BundlerError
   parser.abort
 end
