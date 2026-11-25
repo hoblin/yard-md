@@ -127,6 +127,8 @@ module YardMd
     def retire(target)
       Dir.mktmpdir(".#{File.basename(target)}-", @output) do |retired|
         File.rename(target, File.join(retired, "docs"))
+      rescue Errno::ENOENT
+        nil
       end
     end
   end

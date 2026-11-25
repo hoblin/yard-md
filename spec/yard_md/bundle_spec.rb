@@ -103,6 +103,17 @@ RSpec.describe YardMd::Bundle do
         expect(Dir.children(cache)).to contain_exactly("sample-0.1.0", "other-1.0.0")
       end
 
+      it "publishes its rebuild when a concurrent run retired the directory first" do
+        allow(File).to receive(:rename).and_wrap_original do |rename, from, to|
+          FileUtils.rm_rf(from) if from.end_with?("sample-0.1.0")
+          rename.call(from, to)
+        end
+
+        expect { expect(bundle.document).to be(true) }.to output("sample-0.1.0\n").to_stdout
+
+        expect(widget_page).to start_with("# class Sample::Widget")
+      end
+
       it "keeps a gem's existing directory when it cannot be rebuilt" do
         allow(YardMd::GemDocs).to receive(:new).and_raise("unreadable")
 
