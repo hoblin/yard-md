@@ -97,13 +97,13 @@ RSpec.describe "exe/yard-md" do
     expect(err).to start_with("yard-md: ").and include("absent")
   end
 
-  it "says what it does, takes and writes on --help and -h, and runs nothing, in a project or outside one" do
+  it "names itself and says what it does, takes and writes on --help and -h, and runs nothing, in a project or outside one" do
     [@project, File.dirname(@project)].product(%w[--help -h]).each do |dir, flag|
       out, err, status = nil
 
       expect { out, err, status = yard_md(flag, chdir: dir) }.not_to change { Dir.children(dir) }, "#{flag} in #{dir}"
       expect(status).to be_success, "#{flag} in #{dir}: #{err}"
-      expect(out).to start_with("Documents a project's gems as Markdown, for people and coding agents to read.\n\nUsage: yard-md [--force] [output dir]\n")
+      expect(out).to start_with("yard-md — documents a project's gems as Markdown, for people and coding agents to read.\n\nUsage: yard-md [--force] [output dir]\n")
         .and include("<output dir>/<gem>-<version>/", ".yardopts", "skipped", "stderr", "exit status", "--version")
         .and include("here, #{@home}/xdg/gem-docs.")
         .and match(/^ +--force +rebuilds/)

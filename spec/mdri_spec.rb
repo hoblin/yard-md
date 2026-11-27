@@ -139,13 +139,13 @@ RSpec.describe "exe/mdri" do
     end
   end
 
-  it "says what it does, takes and reads on --help and -h, and runs nothing, in a project or outside one" do
+  it "names itself and says what it does, takes and reads on --help and -h, and runs nothing, in a project or outside one" do
     [@project, File.dirname(@project)].product(%w[--help -h]).each do |dir, flag|
       out, err, status = nil
 
       expect { out, err, status = mdri(flag, chdir: dir) }.not_to change { Dir.glob("**/*", base: @home) }, "#{flag} in #{dir}"
       expect(status).to be_success, "#{flag} in #{dir}: #{err}"
-      expect(out).to start_with("Reads the documentation yard-md wrote for a project's gems, by constant.\n\nUsage: mdri [--from N] <Constant>[#method|.method] [output dir]\n")
+      expect(out).to start_with("mdri — reads the documentation yard-md wrote for a project's gems, by constant.\n\nUsage: mdri [--from N] <Constant>[#method|.method] [output dir]\n")
         .and include("bundle", "at those versions", "stderr", "writes nothing", "--version", "100 lines", "100 words", "200 characters")
         .and include("here, #{@home}/xdg/gem-docs.")
         .and match(/^ +--from N +starts the answer at line N$/)
