@@ -35,6 +35,6 @@ begin
   answer = YardMd::Bundle.new(*output).read(address)
   abort "mdri: nothing in the bundle documents #{address}" unless answer
   print answer
-rescue OptionParser::ParseError, Bundler::BundlerError
+rescue OptionParser::ParseError, YardMd::Error
   parser.abort
 end

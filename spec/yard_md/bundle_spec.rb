@@ -7,12 +7,16 @@ RSpec.describe YardMd::Bundle do
   let(:sample) { gem_spec("sample", "0.1.0", File.expand_path("../fixtures/sample", __dir__)) }
   let(:specs) { [sample] }
 
-  before { allow(Bundler).to receive(:definition).and_return(instance_double(Bundler::Definition, specs: specs)) }
+  before { resolve(specs) }
 
   after { FileUtils.rm_rf(cache) }
 
   def gem_spec(name, version, path)
-    instance_double(Gem::Specification, name: name, version: version, full_gem_path: path, default_gem?: false)
+    {name: name, version: version, path: path}
+  end
+
+  def resolve(specs)
+    allow(Open3).to receive(:capture3).and_return([JSON.generate(specs), "", instance_double(Process::Status, success?: true)])
   end
 
   def widget_page
@@ -125,6 +129,46 @@ RSpec.describe YardMd::Bundle do
     end
   end
 
+  describe "resolving the bundle" do
+    let(:resolved) { [JSON.generate([sample]), "", instance_double(Process::Status, success?: true)] }
+
+    it "asks the project's Ruby, through mise where mise is installed" do
+      allow(Open3).to receive(:capture3).with("mise", "exec", "--", "ruby", "-e", described_class::RESOLVE).and_return(resolved)
+
+      expect { bundle.document }.to output("sample-0.1.0\n").to_stdout
+    end
+
+    it "asks the Ruby on the PATH where mise is not installed" do
+      allow(Open3).to receive(:capture3).with("mise", any_args).and_raise(Errno::ENOENT)
+      allow(Open3).to receive(:capture3).with("ruby", "-e", described_class::RESOLVE).and_return(resolved)
+
+      expect { bundle.document }.to output("sample-0.1.0\n").to_stdout
+    end
+
+    it "fails with the project's own message, writing nothing, when the bundle cannot be resolved" do
+      failed = instance_double(Process::Status, success?: false)
+      allow(Open3).to receive(:capture3).and_return(["", "Could not find absent-1.0.0 in locally installed gems\n", failed])
+      FileUtils.rm_rf(cache)
+
+      expect { bundle.document }.to raise_error(YardMd::Error, "Could not find absent-1.0.0 in locally installed gems")
+      expect(File.exist?(cache)).to be(false)
+    end
+
+    it "gives a default gem's files in its Ruby's own library directory" do
+      allow(Open3).to receive(:capture3).and_call_original
+      optparse = Gem::Specification.find { |spec| spec.default_gem? && spec.name == "optparse" }
+      out, err, status = Dir.mktmpdir do |project|
+        File.write(File.join(project, "Gemfile"), %(gem "optparse", "#{optparse.version}"\n))
+        Bundler.with_unbundled_env { Open3.capture3(RbConfig.ruby, "-e", described_class::RESOLVE, chdir: project) }
+      end
+
+      expect(status).to be_success, err
+      expect(JSON.parse(out, symbolize_names: true)).to include(
+        a_hash_including(name: "optparse", root: RbConfig::CONFIG["rubylibdir"], files: include("optparse.rb", "optparse/time.rb"))
+      )
+    end
+  end
+
   describe "#read" do
     let(:specs) { [sample, gem_spec("addon", "1.0.0", File.expand_path("../fixtures/addon", __dir__))] }
 
@@ -175,9 +219,7 @@ RSpec.describe YardMd::Bundle do
 
     it "answers from the other gems when one has no index or no directory" do
       FileUtils.mkdir_p(File.join(cache, "stale-1.0.0"))
-      allow(Bundler).to receive(:definition).and_return(instance_double(Bundler::Definition, specs: [
-        gem_spec("stale", "1.0.0", "/nonexistent"), gem_spec("absent", "1.0.0", "/nonexistent"), *specs
-      ]))
+      resolve([gem_spec("stale", "1.0.0", "/nonexistent"), gem_spec("absent", "1.0.0", "/nonexistent"), *specs])
 
       expect(bundle.read("Sample::Widget#forget")).to eq("### #forget\n\nForgets the widget.\n")
     end

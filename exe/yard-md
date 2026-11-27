@@ -41,6 +41,6 @@ begin
   arguments = parser.parse(ARGV, into: options)
   abort parser.help if arguments.size > 1
   exit YardMd::Bundle.new(*arguments, **options).document
-rescue OptionParser::ParseError, Bundler::BundlerError
+rescue OptionParser::ParseError, YardMd::Error
   parser.abort
 end

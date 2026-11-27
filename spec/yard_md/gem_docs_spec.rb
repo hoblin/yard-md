@@ -5,9 +5,7 @@ RSpec.describe YardMd::GemDocs do
 
   before(:context) do
     @output = Dir.mktmpdir
-    spec = Gem::Specification.load(File.join(fixture, "sample.gemspec"))
-    spec.full_gem_path = fixture
-    described_class.new(spec).write(@output)
+    described_class.new(YardMd::Bundle::Spec.new(name: "sample", version: "0.1.0", path: fixture)).write(@output)
   end
 
   after(:context) { FileUtils.rm_rf(@output) }
@@ -230,7 +228,7 @@ RSpec.describe YardMd::GemDocs do
 
   context "when the output lies inside one of the gem's own directories" do
     let(:gem_root) { Dir.mktmpdir }
-    let(:spec) { instance_double(Gem::Specification, default_gem?: false, full_gem_path: gem_root) }
+    let(:spec) { YardMd::Bundle::Spec.new(name: "own", version: "1.0.0", path: gem_root) }
 
     before do
       FileUtils.mkdir_p(File.join(gem_root, "lib"))
@@ -251,7 +249,7 @@ RSpec.describe YardMd::GemDocs do
 
   context "when YARD cannot process some of a gem's code" do
     let(:output) { Dir.mktmpdir }
-    let(:spec) { instance_double(Gem::Specification, default_gem?: false, full_gem_path: File.expand_path("../fixtures/broken", __dir__)) }
+    let(:spec) { YardMd::Bundle::Spec.new(name: "broken", version: "1.0.0", path: File.expand_path("../fixtures/broken", __dir__)) }
 
     after { FileUtils.rm_rf(output) }
 
@@ -271,15 +269,13 @@ RSpec.describe YardMd::GemDocs do
     end
   end
 
-  context "with a default gem, whose code lives in Ruby's own library directory" do
+  context "with a gem whose code lives apart from its directory, as a default gem's does in Ruby's own library directory" do
     let(:output) { Dir.mktmpdir }
-    let(:spec) { instance_double(Gem::Specification, default_gem?: true, full_gem_path: "/nonexistent", files: ["exe/sample", "lib/sample.rb"]) }
-
-    before { stub_const("RbConfig::CONFIG", RbConfig::CONFIG.merge("rubylibdir" => File.join(fixture, "lib"))) }
+    let(:spec) { YardMd::Bundle::Spec.new(name: "sample", version: "0.1.0", path: "/nonexistent", root: File.join(fixture, "lib"), files: ["sample.rb"]) }
 
     after { FileUtils.rm_rf(output) }
 
-    it "documents the gem's own files there" do
+    it "documents only the given files there" do
       described_class.new(spec).write(output)
 
       expect(Dir.glob("**/*.md", base: output)).to contain_exactly("Sample.md", "Sample/Empty/Inner.md", "Sample/Widget.md")

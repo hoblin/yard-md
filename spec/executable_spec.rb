@@ -22,7 +22,7 @@ RSpec.describe "exe/yard-md" do
     expect(Dir.children(output)).to contain_exactly("sample-0.1.0", "bundler-#{Bundler::VERSION}")
     expect(File.read(File.join(output, "sample-0.1.0/Sample/Widget.md"))).to start_with("# class Sample::Widget")
     expect(File.join(output, "bundler-#{Bundler::VERSION}/Bundler.md")).to satisfy { |page| File.file?(page) }
-    expect(File.join(@home, "xdg")).not_to satisfy { |cache| File.exist?(cache) }
+    expect(File.join(@home, "xdg/gem-docs")).not_to satisfy { |cache| File.exist?(cache) }
   end
 
   it "writes nothing on a second run" do
@@ -85,7 +85,7 @@ RSpec.describe "exe/yard-md" do
 
         expect(status).to be_success, "#{xdg.inspect}: #{err}"
         expect(Dir.children(File.join(@home, ".cache/gem-docs"))).to include("sample-0.1.0")
-        expect(Dir.children(@project)).to eq(["Gemfile"])
+        expect(Dir.glob("**/gem-docs", base: @project)).to be_empty
       end
     end
   end

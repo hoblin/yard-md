@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require "bundler"
 require "fileutils"
 require "json"
+require "open3"
 require "stringio"
 require "tmpdir"
 require "yard"
@@ -21,6 +21,10 @@ module YardMd
 
   # Where the documentation goes unless told otherwise.
   CACHE = File.join(cache_home, "gem-docs")
+
+  # The bundle cannot be resolved; the message is the project's own, as
+  # Bundler gave it.
+  class Error < StandardError; end
 
   # The file in each gem's directory that {Bundle#read} answers from, beside
   # the pages it indexes.
