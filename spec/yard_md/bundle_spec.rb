@@ -187,8 +187,62 @@ RSpec.describe YardMd::Bundle do
 
   describe "#read" do
     let(:specs) { [sample, gem_spec("addon", "1.0.0", File.expand_path("../fixtures/addon", __dir__))] }
+    let(:project) { Dir.mktmpdir }
+    let(:lockfile) { File.join(project, "Gemfile.lock") }
 
-    before { expect { bundle.document }.to output.to_stdout }
+    around do |example|
+      given = ENV["BUNDLE_LOCKFILE"]
+      ENV["BUNDLE_LOCKFILE"] = lockfile
+      example.run
+    ensure
+      ENV["BUNDLE_LOCKFILE"] = given
+      FileUtils.rm_rf(project)
+    end
+
+    before do
+      expect { bundle.document }.to output.to_stdout
+      lock("sample (0.1.0)", "addon (1.0.0)")
+    end
+
+    def lock(*gems, bundled_with: nil)
+      File.write(lockfile, <<~LOCK)
+        GEM
+          specs:
+        #{gems.map { |gem| "    #{gem}\n" }.join}
+        PLATFORMS
+          ruby
+        #{"\nBUNDLED WITH\n   #{bundled_with}" if bundled_with}
+      LOCK
+    end
+
+    it "takes the versions from the lockfile, starting no process" do
+      expect(Open3).not_to receive(:capture3)
+
+      expect(bundle.read("Sample::VERSION")).to eq(%(### VERSION = "0.1.0"\n))
+    end
+
+    it "reads a gem the lockfile lists for several platforms once" do
+      lock("sample (0.1.0)", "sample (0.1.0-x86_64-linux)", "sample (0.1.0-arm64-darwin)")
+
+      expect(bundle.read("Sample::Empty::Inner")).to eq("Sample::Empty::Inner — class in sample 0.1.0, with no constants, classes or methods\n")
+      expect(bundle.read("Sample::Widget#forget")).to eq("### #forget\n\nForgets the widget.\n")
+    end
+
+    it "reads Bundler at the version the lockfile was bundled with" do
+      FileUtils.mkdir_p(File.join(cache, "bundler-9.9.9"))
+      File.write(File.join(cache, "bundler-9.9.9", YardMd::INDEX), JSON.generate("" => {kind: "root"}, "Bundler" => {kind: "module"}))
+      lock("sample (0.1.0)", bundled_with: "9.9.9")
+
+      expect(bundle.read("Bundler")).to eq("Bundler — module in bundler 9.9.9, with no constants, classes or methods\n")
+    end
+
+    it "fails with what it could not read when the project has no lockfile, or a broken one" do
+      File.delete(lockfile)
+      expect { bundle.read("Sample") }.to raise_error(YardMd::Error, "Could not locate Gemfile.lock")
+
+      File.write(lockfile, "<<<<<<< HEAD\nGEM\n=======\n>>>>>>> branch\n")
+      expect { bundle.read("Sample") }.to raise_error(YardMd::Error, /merge conflicts/)
+    end
 
     it "lists a namespace's constants, then its classes and modules from every gem that adds to them, each once with what it holds" do
       expect(bundle.read("Sample")).to eq(<<~LIST)
@@ -201,15 +255,15 @@ RSpec.describe YardMd::Bundle do
       LIST
     end
 
-    it "lists a class's constants, then its methods, attribute accessors and aliases in the order of its pages, each once with its summary" do
+    it "lists a class's constants, then its methods, attribute accessors and aliases gem by gem in the lockfile's order, in the order of their pages, each once with its summary" do
       expect(bundle.read("Sample::Widget").lines(chomp: true)).to eq([
         "Sample::Widget::FINISHES — 82 characters", "Sample::Widget::SIZES = %i[small large].freeze",
+        ".paint — Paints every widget.", "#buff — Buffs the widget with a matching cloth until it shines.",
+        "#paint — Paints the widget again.", "#polish — Polishes the widget.", "#scrub — Scrubs the widget, `force` or not.",
         "#color — The widget's color.", "#color= — The widget's color.", "#hue — The widget's color.",
         "#finish= — Sets the finish.", "#size — The widget's size.", ".find — Finds a widget by color.",
-        "#forget — Forgets the widget.", "#initialize — Creates a widget.", "#paint — Paints the widget.",
-        "#repaint — Paints the widget.", "#resize", ".paint — Paints every widget.",
-        "#buff — Buffs the widget with a matching cloth until it shines.", "#polish — Polishes the widget.",
-        "#scrub — Scrubs the widget, `force` or not."
+        "#forget — Forgets the widget.", "#initialize — Creates a widget.",
+        "#repaint — Paints the widget.", "#resize"
       ])
     end
 
@@ -229,9 +283,9 @@ RSpec.describe YardMd::Bundle do
       expect(bundle.read("Sample::Widget#forget")).to eq("### #forget\n\nForgets the widget.\n")
     end
 
-    it "answers a method with the block from every gem that documents it" do
-      expect(bundle.read("Sample::Widget#paint")).to start_with("### #paint(color, options = {})")
-        .and end_with("Also known as: `repaint`\n\n### #paint\n\nPaints the widget again.\n")
+    it "answers a method with the block from every gem that documents it, in the lockfile's order" do
+      expect(bundle.read("Sample::Widget#paint")).to start_with("### #paint\n\nPaints the widget again.\n\n### #paint(color, options = {})")
+        .and end_with("Also known as: `repaint`\n")
     end
 
     it "tells a class method from an instance method of the same name" do
@@ -264,7 +318,7 @@ RSpec.describe YardMd::Bundle do
 
     it "answers from the other gems when one has no index or no directory" do
       FileUtils.mkdir_p(File.join(cache, "stale-1.0.0"))
-      resolve([gem_spec("stale", "1.0.0", "/nonexistent"), gem_spec("absent", "1.0.0", "/nonexistent"), *specs])
+      lock("stale (1.0.0)", "absent (1.0.0)", "sample (0.1.0)", "addon (1.0.0)")
 
       expect(bundle.read("Sample::Widget#forget")).to eq("### #forget\n\nForgets the widget.\n")
     end
@@ -282,7 +336,7 @@ RSpec.describe YardMd::Bundle do
       LIST
     end
 
-    it "reads only the versions the bundle resolves" do
+    it "reads only the versions the lockfile locks" do
       FileUtils.mkdir_p(File.join(cache, "sample-9.9.9"))
       File.write(File.join(cache, "sample-9.9.9", YardMd::INDEX), JSON.generate("" => {kind: "root"}, "Sample::Future" => {kind: "class"}))
 

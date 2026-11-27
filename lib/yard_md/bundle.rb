@@ -4,9 +4,10 @@ module YardMd
   # The documentation of every gem the current project's bundle resolves on
   # this platform, written as Markdown into one directory per gem version.
   #
-  # The bundle is resolved by the project's own Ruby through <tt>mise exec</tt>
-  # where mise is installed, otherwise by the +ruby+ on the PATH, so it need not
-  # be the Ruby yard-md runs on. mise installs no missing tool for it.
+  # {#document} has the bundle resolved by the project's own Ruby through
+  # <tt>mise exec</tt> where mise is installed, otherwise by the +ruby+ on the
+  # PATH, so it need not be the Ruby yard-md runs on. mise installs no missing
+  # tool for it. {#read} takes the versions from the project's lockfile alone.
   #
   # The output directory is a cache: a gem whose <tt><gem>-<version></tt> directory
   # exists is skipped unless forced, and a directory appears only once its gem
@@ -90,8 +91,10 @@ module YardMd
     end
 
     # Answers from the documentation {#document} wrote for the bundle's gems, at
-    # the versions it resolves. A gem not documented yet, or documented by
-    # yard-md 0.1.0, which wrote no index, does not answer.
+    # the versions the project's lockfile locks, found as Bundler finds it, and
+    # Bundler at the version it was bundled with. A gem not documented yet, or
+    # documented by yard-md 0.1.0, which wrote no index, does not answer, nor
+    # does one the lockfile locks for another platform only.
     #
     # @param address [String] a constant, or a method of one:
     #   <tt>Faraday</tt>, <tt>Faraday::VERSION</tt>,
@@ -104,10 +107,11 @@ module YardMd
     #   its kind and gems; for a value constant or a method, its block of the
     #   page, from every gem that documents it
     # @return [nil] when no gem documents it
-    # @raise [Error] when the bundle cannot be resolved
+    # @raise [Error] when the project has no Gemfile or lockfile, or Bundler
+    #   cannot read the lockfile
     def read(address)
       constant, method = address.match(/\A([^#.]*)(.*)\z/m).captures
-      indexes = specs.filter_map do |spec|
+      indexes = locked.filter_map do |spec|
         file = File.join(directory(spec), INDEX)
         index = JSON.parse(File.read(file)) if File.exist?(file)
         [spec, index] if index&.dig("", "kind")
@@ -130,6 +134,18 @@ module YardMd
 
         result[:specs].map { |spec| Spec.new(**spec) }
       end
+    end
+
+    def locked
+      lockfile = Bundler.default_lockfile
+      raise Error, "Could not locate #{lockfile.basename}" unless lockfile.file?
+
+      parser = Bundler::LockfileParser.new(Bundler.read_file(lockfile))
+      versions = parser.specs.map { |spec| [spec.name, spec.version.to_s] }
+      versions << ["bundler", parser.bundler_version.to_s] if parser.bundler_version
+      versions.uniq.map { |name, version| Spec.new(name: name, version: version, path: nil) }
+    rescue Bundler::BundlerError => error
+      raise Error, error.message
     end
 
     def ruby(*args)

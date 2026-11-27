@@ -62,14 +62,26 @@ RSpec.describe "exe/mdri" do
     end
   end
 
-  it "says in one line why a bundle it cannot resolve stops it" do
+  it "reads the versions from Gemfile.lock alone, without resolving the Gemfile" do
+    run("yard-md")
     File.write(File.join(@project, "Gemfile"), %(gem "absent", path: "../absent"\n))
 
-    _, err, status = mdri("Sample")
+    out, err, status = mdri("Sample::VERSION")
 
-    expect(status).not_to be_success
-    expect(err.lines.size).to eq(1)
-    expect(err).to start_with("mdri: ").and include("absent")
+    expect(status).to be_success, err
+    expect(out).to eq(%(### VERSION = "0.1.0"\n))
+  end
+
+  it "says in one line that it finds no Gemfile.lock, or no Gemfile" do
+    File.delete(File.join(@project, "Gemfile.lock"))
+
+    [[@project, "mdri: Could not locate Gemfile.lock\n"], [File.dirname(@project), "mdri: Could not locate Gemfile\n"]].each do |dir, message|
+      out, err, status = mdri("Sample", chdir: dir)
+
+      expect(status).not_to be_success, dir
+      expect(out).to be_empty
+      expect(err).to eq(message)
+    end
   end
 
   it "prints its version" do
