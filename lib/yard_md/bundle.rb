@@ -26,6 +26,16 @@ module YardMd
       end
     end
 
+    # @api private
+    Namespace = Struct.new(:kind, :constants, :methods, :gems) do
+      def initialize(kind:, constants: {}, methods: {}, gems: [])
+        super
+      end
+    end
+
+    # @api private
+    NOUNS = {"constant" => "constants", "module" => "modules", "class" => "classes", "method" => "methods"}.freeze
+
     # Run by the project's Ruby, it writes into the file named by its argument
     # the bundle's {Spec}s, or Bundler's error, as JSON; what the Gemfile
     # prints goes wherever it goes.
@@ -84,22 +94,28 @@ module YardMd
     # yard-md 0.1.0, which wrote no index, does not answer.
     #
     # @param address [String] a constant, or a method of one:
-    #   <tt>Faraday</tt>, <tt>Faraday::Connection#get</tt>, <tt>Faraday.new</tt>;
-    #   an empty constant is the top-level namespace: <tt>""</tt>, <tt>#puts</tt>
-    # @return [String] for a constant, its classes and modules, then its
-    #   methods, one per line, from every gem that has them, empty when it has
-    #   neither; for a method, its block of the page, from every gem that
-    #   documents it
+    #   <tt>Faraday</tt>, <tt>Faraday::VERSION</tt>,
+    #   <tt>Faraday::Connection#get</tt>, <tt>Faraday.new</tt>; an empty
+    #   constant is the top-level namespace: <tt>""</tt>, <tt>#puts</tt>
+    # @return [String] for a class or module, one line per constant, class or
+    #   module, and method in it, from every gem that has them, each with what
+    #   lies behind it: a constant's value, a class's or module's kind and
+    #   counts, a method's summary; when it has nothing to list, one line with
+    #   its kind and gems; for a value constant or a method, its block of the
+    #   page, from every gem that documents it
     # @return [nil] when no gem documents it
     # @raise [Error] when the bundle cannot be resolved
     def read(address)
       constant, method = address.match(/\A([^#.]*)(.*)\z/m).captures
       indexes = specs.filter_map do |spec|
-        directory = directory(spec)
-        index = File.join(directory, INDEX)
-        [directory, JSON.parse(File.read(index))] if File.exist?(index)
+        file = File.join(directory(spec), INDEX)
+        index = JSON.parse(File.read(file)) if File.exist?(file)
+        [spec, index] if index&.dig("", "kind")
       end
-      method.empty? ? listing(indexes, constant) : method_blocks(indexes, constant, method)
+      return blocks(indexes, constant, "methods", method) unless method.empty?
+
+      namespace, _, name = constant.rpartition("::")
+      listing(indexes, constant) || blocks(indexes, namespace, "constants", name)
     end
 
     private
@@ -127,19 +143,69 @@ module YardMd
     end
 
     def listing(indexes, constant)
-      children = indexes.flat_map { |_, index| index.keys.select { |path| path != constant && path.rpartition("::").first == constant } }
-      entries = indexes.filter_map { |_, index| index[constant] }
-      return if children.empty? && entries.empty?
+      namespaces = namespaces(indexes, constant)
+      namespace = namespaces[constant]
+      children = namespaces.keys.select { |path| inside?(path, constant) }.sort
+      return unless namespace || children.any?
 
-      [*children.uniq.sort, *entries.flat_map { |entry| entry.fetch("methods", {}).keys }.uniq].map { |line| "#{line}\n" }.join
+      held = held(namespaces)
+      lines = [
+        *namespace&.constants&.sort&.map { |name, detail| constant_line(qualified(constant, name), detail) },
+        *children.map { |path| [path, [namespaces[path].kind, *counts(held[path])].join(", ")].join(" — ") },
+        *namespace&.methods&.map { |name, detail| [name, detail["summary"]].compact.join(" — ") }
+      ]
+      return lines.map { |line| "#{line}\n" }.join if lines.any?
+
+      "#{constant} — #{namespace.kind} in #{namespace.gems.join(", ")}, with no constants, classes or methods\n"
     end
 
-    def method_blocks(indexes, constant, method)
-      blocks = indexes.filter_map do |directory, index|
-        first, last = index.dig(constant, "methods", method)
-        File.readlines(File.join(directory, index.dig(constant, "page")))[(first - 1)...last].join if first
+    def held(namespaces)
+      namespaces.each_with_object(Hash.new { |held, path| held[path] = Hash.new(0) }) do |(path, namespace), held|
+        held[path]["constant"] += namespace.constants.size
+        held[path]["method"] += namespace.methods.size
+        held[parent(path)][namespace.kind] += 1 unless path.empty?
+      end
+    end
+
+    def namespaces(indexes, constant)
+      indexes.each_with_object({}) do |(spec, index), namespaces|
+        index.each do |path, entry|
+          next unless path == constant || inside?(path, constant) || inside?(parent(path), constant)
+
+          namespace = namespaces[path] ||= Namespace.new(kind: entry["kind"])
+          namespace.constants = entry.fetch("constants", {}).merge(namespace.constants)
+          namespace.methods = namespace.methods.merge(entry.fetch("methods", {})) { |_, first, _| first }
+          namespace.gems << "#{spec.name} #{spec.version}"
+        end
+      end
+    end
+
+    def counts(held)
+      NOUNS.filter_map { |noun, plural| "#{held[noun]} #{(held[noun] == 1) ? noun : plural}" if held[noun].positive? }
+    end
+
+    def constant_line(path, detail)
+      detail.key?("value") ? "#{path} = #{detail["value"]}" : "#{path} — #{detail["size"]}"
+    end
+
+    def blocks(indexes, namespace, group, name)
+      blocks = indexes.filter_map do |spec, index|
+        first, last = index.dig(namespace, group, name, "lines")
+        File.readlines(File.join(directory(spec), index.dig(namespace, "page")))[(first - 1)...last].join if first
       end
       blocks.join("\n") unless blocks.empty?
+    end
+
+    def inside?(path, namespace)
+      path != namespace && parent(path) == namespace
+    end
+
+    def parent(path)
+      path.rpartition("::").first
+    end
+
+    def qualified(namespace, name)
+      namespace.empty? ? name : "#{namespace}::#{name}"
     end
 
     def build(spec)
