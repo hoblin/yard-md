@@ -228,12 +228,13 @@ RSpec.describe YardMd::Bundle do
       expect(bundle.read("Sample::Widget#forget")).to eq("### #forget\n\nForgets the widget.\n")
     end
 
-    it "reads Bundler at the version the lockfile was bundled with" do
+    it "reads Bundler at the version the lockfile was bundled with, in name order with the rest" do
       FileUtils.mkdir_p(File.join(cache, "bundler-9.9.9"))
-      File.write(File.join(cache, "bundler-9.9.9", YardMd::INDEX), JSON.generate("" => {kind: "root"}, "Bundler" => {kind: "module"}))
-      lock("sample (0.1.0)", bundled_with: "9.9.9")
+      File.write(File.join(cache, "bundler-9.9.9", YardMd::INDEX), JSON.generate("" => {kind: "root"}, "Bundler" => {kind: "module"}, "Sample::Empty::Inner" => {kind: "class"}))
+      lock("addon (1.0.0)", "sample (0.1.0)", bundled_with: "9.9.9")
 
       expect(bundle.read("Bundler")).to eq("Bundler — module in bundler 9.9.9, with no constants, classes or methods\n")
+      expect(bundle.read("Sample::Empty::Inner")).to eq("Sample::Empty::Inner — class in bundler 9.9.9, sample 0.1.0, with no constants, classes or methods\n")
     end
 
     it "fails with what it could not read when the project has no lockfile, or a broken one" do

@@ -143,7 +143,7 @@ module YardMd
       parser = Bundler::LockfileParser.new(Bundler.read_file(lockfile))
       versions = parser.specs.map { |spec| [spec.name, spec.version.to_s] }
       versions << ["bundler", parser.bundler_version.to_s] if parser.bundler_version
-      versions.uniq.map { |name, version| Spec.new(name: name, version: version, path: nil) }
+      versions.uniq.sort.map { |name, version| Spec.new(name: name, version: version, path: nil) }
     rescue Bundler::BundlerError => error
       raise Error, error.message
     end
