@@ -5,6 +5,8 @@ require "optparse"
 require "yard_md"
 
 parser = OptionParser.new(<<~HELP)
+  Reads the documentation yard-md wrote for a project's gems, by constant.
+
   Usage: mdri <Constant>[#method|.method] [output dir]
 
   Run in a project. Reads the documentation yard-md wrote into <output dir>

@@ -65,7 +65,7 @@ RSpec.describe "exe/mdri" do
 
       expect { out, err, status = mdri(flag, chdir: dir) }.not_to change { Dir.glob("**/*", base: @home) }, "#{flag} in #{dir}"
       expect(status).to be_success, "#{flag} in #{dir}: #{err}"
-      expect(out).to start_with("Usage: mdri <Constant>[#method|.method] [output dir]\n")
+      expect(out).to start_with("Reads the documentation yard-md wrote for a project's gems, by constant.\n\nUsage: mdri <Constant>[#method|.method] [output dir]\n")
         .and include("bundle", "at those versions", "stderr", "writes nothing", "--version")
         .and include("here, #{@home}/xdg/gem-docs.")
     end
@@ -78,7 +78,7 @@ RSpec.describe "exe/mdri" do
       expect { out, err, status = mdri(*args) }.not_to change { Dir.glob("**/*", base: @home) }, args.inspect
       expect(status).not_to be_success, args.inspect
       expect(out).to be_empty
-      expect(err).to start_with("Usage: mdri ")
+      expect(err).to start_with("Reads the documentation yard-md wrote for a project's gems, by constant.\n\nUsage: mdri ")
     end
   end
 end
