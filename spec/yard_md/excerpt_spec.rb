@@ -2,14 +2,14 @@
 
 RSpec.describe YardMd::Excerpt do
   def excerpt(text, from = 1)
-    described_class.new(text, from).to_s("mdri Big")
+    described_class.new(text, from).page("mdri Big")
   end
 
   def numbered(count)
     (1..count).map { |line| "line #{line}\n" }.join
   end
 
-  describe "#to_s" do
+  describe "#page" do
     it "leaves an answer within every limit as it is" do
       expect(excerpt("### #find\n\nFinds it.\n")).to eq("### #find\n\nFinds it.\n")
     end
@@ -42,8 +42,21 @@ RSpec.describe YardMd::Excerpt do
       expect(excerpt("REGEX = /#{"a" * 12_000}/\n")).to eq("REGEX = /#{"a" * 199}… [+11802 chars]\n")
     end
 
-    it "keeps a last line that has no newline without one" do
+    it "leaves a line of exactly 100 words and a word of exactly 200 characters whole" do
+      line = "#{(["w"] * 99).join(" ")} #{"c" * 200}\n"
+
+      expect(excerpt(line)).to eq(line)
+    end
+
+    it "cuts words before characters, so a cut word's marker is not counted as words" do
+      line = (["c" * 300] * 101).join(" ")
+
+      expect(excerpt("#{line}\n")).to eq("#{(["#{"c" * 200}… [+100 chars]"] * 100).join(" ")} … [+1 words]\n")
+    end
+
+    it "keeps a last line that has no newline without one, and puts its own line under it" do
       expect(excerpt("b" * 300)).to eq("#{"b" * 200}… [+100 chars]")
+      expect(excerpt("a\nb", 2)).to eq("b\n[Showing lines 2–2 of 2.]\n")
     end
   end
 end

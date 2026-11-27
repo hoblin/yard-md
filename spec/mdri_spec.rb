@@ -39,7 +39,7 @@ RSpec.describe "exe/mdri" do
     end
 
     it "starts the answer at the line --from gives, saying where it is" do
-      out, err, status = mdri("Sample", "--from", "4")
+      out, err, status = mdri("--from", "4", "Sample")
 
       expect(status).to be_success, err
       expect(out).to eq("Sample::Notes — class\nSample::Widget — class, 11 methods\n[Showing lines 4–5 of 5.]\n")

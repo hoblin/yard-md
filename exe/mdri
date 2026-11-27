@@ -37,8 +37,8 @@ parser = OptionParser.new(<<~HELP)
 
   Cuts each answer to #{YardMd::Excerpt::LINES} lines, each line to #{YardMd::Excerpt::WORDS} words and each word
   to #{YardMd::Excerpt::CHARS} characters, marking every cut where it happens: … [+340 words],
-  … [+12000 chars]. An answer cut by lines ends with its total and the
-  command for the next lines.
+  … [+12000 chars]. An answer cut by lines ends with its total and, while
+  lines remain, the command for the next ones.
 
   Options:
 HELP
@@ -62,7 +62,7 @@ begin
   answer = YardMd::Bundle.new(*output).read(address)
   abort "mdri: nothing in the bundle documents #{address}" unless answer
   from = options.fetch(:from, 1)
-  excerpt = YardMd::Excerpt.new(answer, from).to_s(Shellwords.join(["mdri", address, *output]))
+  excerpt = YardMd::Excerpt.new(answer, from).page(Shellwords.join(["mdri", address, *output]))
   abort "mdri: the answer has #{answer.lines.size} lines, fewer than --from #{from}" unless excerpt
   print excerpt
 rescue OptionParser::ParseError, YardMd::Error

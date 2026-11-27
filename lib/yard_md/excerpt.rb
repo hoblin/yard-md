@@ -14,7 +14,7 @@ module YardMd
       @from = from
     end
 
-    def to_s(command)
+    def page(command)
       return if @from > @lines.size
 
       shown = @lines[@from - 1, LINES]
@@ -23,15 +23,15 @@ module YardMd
       return text if @from == 1 && last == @lines.size
 
       more = " #{command} --from #{last + 1} for the next." if last < @lines.size
-      "#{text}[Showing lines #{@from}–#{last} of #{@lines.size}.#{more}]\n"
+      "#{text.chomp}\n[Showing lines #{@from}–#{last} of #{@lines.size}.#{more}]\n"
     end
 
     private
 
     def cut(line)
       text = line.chomp
-      words = text.scan(/\S+/).size
-      text = "#{text[KEPT_WORDS]} … [+#{words - WORDS} words]" if words > WORDS
+      count = text.scan(/\S+/).size
+      text = "#{text[KEPT_WORDS]} … [+#{count - WORDS} words]" if count > WORDS
       text = text.gsub(LONG_WORD) { |word| "#{word[0, CHARS]}… [+#{word.size - CHARS} chars]" }
       "#{text}#{line[/\n\z/]}"
     end
