@@ -18,6 +18,11 @@ RSpec.describe YardMd::GemDocs do
     JSON.parse(page(YardMd::INDEX))
   end
 
+  def block(path, member)
+    first, last = member["lines"]
+    page(path).lines[(first - 1)...last].join
+  end
+
   def written
     Dir.glob("**/*", base: @output).select { |path| File.file?(File.join(@output, path)) }.sort
   end
@@ -190,17 +195,16 @@ RSpec.describe YardMd::GemDocs do
       expect(page("Sample/Widget.md")).to include("### #initialize(color)\n\nCreates a widget.\n\nParameters:\n- `color` (`Symbol`) — the color\n\n### #paint")
     end
 
-    it "indexes each class and module with its page, a namespace that documents nothing without one" do
-      expect(index.transform_values { |entry| entry["page"] }).to eq(
-        "" => nil, "Sample" => "Sample.md", "Sample::Empty" => nil, "Sample::Empty::Inner" => "Sample/Empty/Inner.md",
-        "Sample::Notes" => "Sample/Notes.md", "Sample::Widget" => "Sample/Widget.md"
+    it "indexes each class and module with its kind and page, a namespace that documents nothing without one" do
+      expect(index.transform_values { |entry| entry.values_at("kind", "page") }).to eq(
+        "" => ["root", nil], "Sample" => ["module", "Sample.md"], "Sample::Empty" => ["module", nil],
+        "Sample::Empty::Inner" => ["class", "Sample/Empty/Inner.md"], "Sample::Notes" => ["class", "Sample/Notes.md"],
+        "Sample::Widget" => ["class", "Sample/Widget.md"]
       )
     end
 
     it "indexes the lines of every block a method has on its page" do
-      widget = page("Sample/Widget.md").lines
-
-      blocks = index.dig("Sample::Widget", "methods").transform_values { |first, last| widget[(first - 1)..(last - 1)].join }
+      blocks = index.dig("Sample::Widget", "methods").transform_values { |method| block("Sample/Widget.md", method) }
 
       expect(blocks).to include(
         "#initialize" => "### #initialize(color)\n\nCreates a widget.\n\nParameters:\n- `color` (`Symbol`) — the color\n",
@@ -210,10 +214,23 @@ RSpec.describe YardMd::GemDocs do
       expect(blocks["#paint"]).to start_with("### #paint(").and end_with("Also known as: `repaint`\n")
     end
 
-    it "indexes, on every page, lines that start at a method's heading and end at its block's last line" do
+    it "indexes each method with its YARD summary, taken from its return when its text has none, and none when it has neither" do
+      expect(index.dig("Sample::Widget", "methods").transform_values { |method| method["summary"] }).to include(
+        "#color" => "The widget's color.", "#hue" => "The widget's color.", "#size" => "The widget's size.",
+        ".find" => "Finds a widget by color.", "#repaint" => "Paints the widget.", "#resize" => nil
+      )
+    end
+
+    it "indexes each constant with its value and the lines of its block" do
+      expect(index.dig("Sample", "constants").transform_values { |constant| [constant["value"], block("Sample.md", constant)] }).to eq(
+        "LIMITS" => ["{\n  min: 1,\n  max: 10\n}.freeze", "### LIMITS\n\n```ruby\nLIMITS = {\n  min: 1,\n  max: 10\n}.freeze\n```\n"],
+        "VERSION" => ["\"0.1.0\"", "### VERSION = \"0.1.0\"\n"]
+      )
+    end
+
+    it "indexes, on every page, lines that start at a member's heading and end at its block's last line" do
       blocks = index.values.select { |entry| entry["page"] }.flat_map do |entry|
-        lines = page(entry["page"]).lines
-        entry["methods"].values.map { |first, last| lines[(first - 1)...last].join }
+        entry.values_at("constants", "methods").flat_map(&:values).map { |member| block(entry["page"], member) }
       end
 
       expect(blocks).not_to be_empty

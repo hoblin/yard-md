@@ -9,8 +9,8 @@ module YardMd
     SCOPES = {class: ".", instance: "#"}.freeze
     SEPARATOR = "\n\n"
 
-    Entry = Data.define(:text, :names) do
-      def initialize(text:, names: [])
+    Entry = Data.define(:text, :group, :names, :detail) do
+      def initialize(text:, group: nil, names: [], detail: {})
         super
       end
     end
@@ -25,11 +25,11 @@ module YardMd
       entries.map(&:text).join(SEPARATOR) + "\n" unless entries.empty?
     end
 
-    def spans
+    def members
       first = 1
-      entries.each_with_object({}) do |entry, spans|
+      entries.each_with_object({constants: {}, methods: {}}) do |entry, members|
         last = first + entry.text.count("\n")
-        entry.names.each { |name| spans[name] = [first, last] }
+        entry.names.each { |name| members[entry.group][name] = {lines: [first, last], **entry.detail} }
         first = last + SEPARATOR.count("\n")
       end
     end
@@ -72,7 +72,12 @@ module YardMd
     def constant_entry(constant)
       value = constant.value.to_s
       heading = value.include?("\n") ? "### #{constant.name}\n\n```ruby\n#{constant.name} = #{value}\n```" : "### #{constant.name} = #{value}"
-      Entry.new(text: [heading, docs(constant, 3)].reject(&:empty?).join(SEPARATOR))
+      Entry.new(
+        text: [heading, docs(constant, 3)].reject(&:empty?).join(SEPARATOR),
+        group: :constants,
+        names: [constant.name.to_s],
+        detail: {value: value}
+      )
     end
 
     def attributes(scope)
@@ -106,10 +111,23 @@ module YardMd
 
     def named_entry(methods, parts)
       aliases = @verifier.run(methods.flat_map(&:aliases))
+      summary = summary(methods.first)
       Entry.new(
         text: [*parts, list("Also known as", aliases.map(&:name))].compact.reject(&:empty?).join(SEPARATOR),
-        names: (methods + aliases).map { |method| "#{SCOPES[method.scope]}#{method.name}" }
+        group: :methods,
+        names: (methods + aliases).map { |method| "#{SCOPES[method.scope]}#{method.name}" },
+        detail: summary.empty? ? {} : {summary: summary}
       )
+    end
+
+    def summary(method)
+      overloads = method.tags(:overload)
+      docstring = (overloads.one? && method.docstring.empty?) ? overloads.first.docstring : method.docstring
+      returns = method.tags(:return)
+      if docstring.summary.empty? && returns.one? && returns.first.text
+        docstring = YARD::Docstring.new(returns.first.text.sub(/\A[a-z]/, &:upcase).strip)
+      end
+      @prose.call(docstring.summary, method, 4).strip.gsub(/\s*\n\s*/, " ")
     end
 
     def section(title, entries)

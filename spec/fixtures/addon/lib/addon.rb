@@ -7,6 +7,9 @@ module Sample
 
   # A widget another gem adds to.
   class Widget
+    # The sizes a widget comes in.
+    SIZES = %i[small large].freeze
+
     # Paints every widget.
     def self.paint
     end

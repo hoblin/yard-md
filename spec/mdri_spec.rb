@@ -10,11 +10,11 @@ RSpec.describe "exe/mdri" do
   describe "in a project yard-md documented" do
     before { expect(run("yard-md").last).to be_success }
 
-    it "lists a namespace's classes and modules" do
+    it "lists a namespace's constants, classes and modules" do
       out, err, status = mdri("Sample")
 
       expect(status).to be_success, err
-      expect(out).to eq("Sample::Empty\nSample::Notes\nSample::Widget\n")
+      expect(out).to eq(%(Sample::LIMITS — 4 lines\nSample::VERSION = "0.1.0"\nSample::Empty — module, 1 class\nSample::Notes — class\nSample::Widget — class, 11 methods\n))
     end
 
     it "prints a method's documentation" do
@@ -56,7 +56,7 @@ RSpec.describe "exe/mdri" do
     out, err, status = mdri("Sample::Empty", "docs")
 
     expect(status).to be_success, err
-    expect(out).to eq("Sample::Empty::Inner\n")
+    expect(out).to eq("Sample::Empty::Inner — class\n")
   end
 
   it "says what it does, takes and reads on --help and -h, and runs nothing, in a project or outside one" do
