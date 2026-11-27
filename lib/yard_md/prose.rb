@@ -9,6 +9,7 @@ module YardMd
       [/\[([^\]]+)\]\(rdoc-ref:[^)]+\)/, "\\1"],
       [/(`[^`\n]*`|\w+)\[rdoc-ref:[^\]]+\]/, "\\1"]
     ].freeze
+    LITERAL_REFERENCE = /`[^`]*rdoc-ref:[^`]*`/
     FILE_MARKUP = /^\s*#\s*:markup:\s*(\w+)/
     LINK = /(\\|!)?\{(?!\})(\S+?)(?:\s([^}]*?\S))?\}/
     URL = %r{\A(?:\w+://|mailto:)}
@@ -19,6 +20,12 @@ module YardMd
 
     def self.substitute(text, rules)
       rules.inject(text) { |result, (pattern, replacement)| result.gsub(pattern, replacement) }
+    end
+
+    def self.references(text)
+      literals = []
+      masked = text.gsub(LITERAL_REFERENCE) { |code| "\0#{(literals << code).size - 1}\0" }
+      substitute(masked, REFERENCES).gsub(/\0(\d+)\0/) { literals[$1.to_i] }
     end
 
     def initialize(markup)
@@ -59,7 +66,7 @@ module YardMd
         next line if fenced || line.start_with?("    ", "\t")
         next if line.match?(DIRECTIVE)
 
-        html = Prose.substitute(line.gsub(RDocMarkup::TELETYPE, "`\\2`"), [*RDocMarkup::HTML_EMPHASIS, *REFERENCES])
+        html = Prose.references(Prose.substitute(line.gsub(RDocMarkup::TELETYPE, "`\\2`"), RDocMarkup::HTML_EMPHASIS))
         Prose.outside_code(html) do |part|
           part.gsub(LINK) { ($1) ? $~[0][1..] : link($2, $3) }
         end

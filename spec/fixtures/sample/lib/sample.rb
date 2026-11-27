@@ -62,6 +62,7 @@ module Sample
     #
     # Same as [repainting](rdoc-ref:Sample::Widget#repaint), +hue+[rdoc-ref:Sample::Widget#hue],
     # {coloring}[rdoc-ref:Sample::Widget#color], [+tint+](rdoc-ref:Sample::Widget#color) or Sample[rdoc-ref:Sample].
+    # RDoc writes such a link as <tt>Sample[rdoc-ref:Sample]</tt>.
     #
     # @param color [Symbol] the new color
     # @param options [Hash] painting options
