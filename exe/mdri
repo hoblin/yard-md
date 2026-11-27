@@ -2,12 +2,13 @@
 # frozen_string_literal: true
 
 require "optparse"
+require "shellwords"
 require "yard_md"
 
 parser = OptionParser.new(<<~HELP)
   Reads the documentation yard-md wrote for a project's gems, by constant.
 
-  Usage: mdri <Constant>[#method|.method] [output dir]
+  Usage: mdri [--from N] <Constant>[#method|.method] [output dir]
 
   Run in a project. Reads the documentation yard-md wrote into <output dir>
   for the gems its bundle resolves on this platform, at those versions:
@@ -35,18 +36,38 @@ parser = OptionParser.new(<<~HELP)
   yard-md has documented it; one documented by yard-md 0.1.0 answers after
   yard-md --force documents it again.
 
-  Options: -h, --help shows this; -v, --version prints the version.
+  Cuts each answer to #{YardMd::Excerpt::LINES} lines, each line to #{YardMd::Excerpt::WORDS} words and each word
+  to #{YardMd::Excerpt::CHARS} characters, marking every cut where it happens: … [+340 words],
+  … [+12000 chars]. An answer cut by lines ends with its total and, while
+  lines remain, the command for the next ones.
+
+  Options:
 HELP
 parser.version = YardMd::VERSION
+parser.on("--from N", Integer, "starts the answer at line N") do |line|
+  line.positive? ? line : raise(OptionParser::InvalidArgument, line.to_s)
+end
+parser.on_tail("-h", "--help", "shows this") do
+  puts parser.help
+  exit
+end
+parser.on_tail("-v", "--version", "prints the version") do
+  puts parser.ver
+  exit
+end
 
 trap("INT") { exit 130 }
 
 begin
-  address, *output = parser.parse(ARGV)
+  options = {}
+  address, *output = parser.parse(ARGV, into: options)
   abort parser.help unless address && output.size <= 1
   answer = YardMd::Bundle.new(*output).read(address)
   abort "mdri: nothing in the bundle documents #{address}" unless answer
-  print answer
+  from = options.fetch(:from, 1)
+  excerpt = YardMd::Excerpt.new(answer, from).page(Shellwords.join(["mdri", address, *output.map { |directory| File.expand_path(directory) }]))
+  abort "mdri: the answer has #{answer.lines.size} lines, fewer than --from #{from}" unless excerpt
+  print excerpt
 rescue OptionParser::ParseError, YardMd::Error, SystemCallError
   parser.abort
 end
