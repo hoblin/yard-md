@@ -9,7 +9,7 @@ module YardMd
       [/\[([^\]]+)\]\(rdoc-ref:[^)]+\)/, "\\1"],
       [/(`[^`\n]*`|\w+)\[rdoc-ref:[^\]]+\]/, "\\1"]
     ].freeze
-    LITERAL_REFERENCE = /`[^`]*rdoc-ref:[^`]*`/
+    CODE = /`[^`]*`/
     FILE_MARKUP = /^\s*#\s*:markup:\s*(\w+)/
     LINK = /(\\|!)?\{(?!\})(\S+?)(?:\s([^}]*?\S))?\}/
     URL = %r{\A(?:\w+://|mailto:)}
@@ -24,7 +24,7 @@ module YardMd
 
     def self.references(text)
       literals = []
-      masked = text.gsub(LITERAL_REFERENCE) { |code| "\0#{(literals << code).size - 1}\0" }
+      masked = text.gsub(CODE) { |code| code.include?("rdoc-ref:") ? "\0#{(literals << code).size - 1}\0" : code }
       substitute(masked, REFERENCES).gsub(/\0(\d+)\0/) { literals[$1.to_i] }
     end
 

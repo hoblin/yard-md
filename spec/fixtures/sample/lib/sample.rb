@@ -60,7 +60,7 @@ module Sample
     # :call-seq:
     #   paint(color) -> self
     #
-    # Same as [repainting](rdoc-ref:Sample::Widget#repaint), +hue+[rdoc-ref:Sample::Widget#hue],
+    # Same as [repainting](rdoc-ref:Sample::Widget#repaint), +hue+[rdoc-ref:Sample::Widget#hue], +shade+[rdoc-ref:Sample::Widget#color],
     # {coloring}[rdoc-ref:Sample::Widget#color], [+tint+](rdoc-ref:Sample::Widget#color) or Sample[rdoc-ref:Sample].
     # RDoc writes such a link as <tt>Sample[rdoc-ref:Sample]</tt>.
     #

@@ -146,7 +146,7 @@ RSpec.describe YardMd::GemDocs do
         paint(color) -> self
         ```
 
-        Same as repainting, `hue`,
+        Same as repainting, `hue`, `shade`,
         coloring, `tint` or Sample.
         RDoc writes such a link as `Sample[rdoc-ref:Sample]`.
 
