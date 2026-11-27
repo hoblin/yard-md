@@ -78,15 +78,16 @@ RSpec.describe YardMd::Bundle do
       end
     end
 
-    it "removes what a killed run left half-written, and leaves a live run's alone" do
+    it "removes what a killed run left half-written, and leaves a live run's alone, its own user's or another's" do
       dead = Process.spawn("true").tap { |pid| Process.wait(pid) }
-      FileUtils.mkdir_p(File.join(cache, ".yard-md-#{dead}-sample-0.1.0-20261127-#{dead}-abc/docs"))
-      FileUtils.mkdir_p(File.join(cache, ".yard-md-#{Process.pid}-other-1.0.0-20261127-#{Process.pid}-abc"))
+      FileUtils.mkdir_p(File.join(cache, "#{described_class::SCRATCH}#{dead}-sample-0.1.0-20261127-#{dead}-abc/docs"))
+      live = [Process.pid, 1].map { |pid| "#{described_class::SCRATCH}#{pid}-other-1.0.0-20261127-#{pid}-abc" }
+      live.each { |name| FileUtils.mkdir_p(File.join(cache, name)) }
       FileUtils.mkdir_p(File.join(cache, ".unrelated"))
 
       expect { bundle.document }.to output.to_stdout
 
-      expect(Dir.children(cache)).to contain_exactly("sample-0.1.0", ".yard-md-#{Process.pid}-other-1.0.0-20261127-#{Process.pid}-abc", ".unrelated")
+      expect(Dir.children(cache)).to contain_exactly("sample-0.1.0", *live, ".unrelated")
     end
 
     it "skips a gem whose directory already exists" do
@@ -218,7 +219,7 @@ RSpec.describe YardMd::Bundle do
     end
 
     it "lists a class's constants, then its methods, attribute accessors and aliases in the order of its pages, each once with its summary" do
-      expect(bundle.read("Sample::Widget").lines(chomp: true).drop(4)).to eq([
+      expect(bundle.read("Sample::Widget").split("\n\n").last.lines(chomp: true)).to eq([
         "Sample::Widget::FINISHES — 82 characters", "Sample::Widget::SIZES = %i[small large].freeze",
         "#color — The widget's color.", "#color= — The widget's color.", "#hue — The widget's color.",
         "#finish= — Sets the finish.", "#size — The widget's size.", ".find — Finds a widget by color.",
@@ -241,12 +242,15 @@ RSpec.describe YardMd::Bundle do
 
         Sample::Gadget — class in addon 1.0.0, with no constants, classes or methods
       ANSWER
+    end
+
+    it "answers a class or module with no documentation of its own with its list alone" do
       expect(bundle.read("Sample::Empty")).to eq("Sample::Empty::Inner — class\n")
     end
 
     it "answers a method with its block of the page and nothing else" do
       expect(bundle.read("Sample::Widget.find")).to eq("### .find(color)\n\nFinds a widget by color.\n\nDeprecated: Use `.where` instead.\n")
-      expect(bundle.read("Sample::Widget#forget")).to eq("### #forget\n\nForgets the widget.\n")
+      expect(bundle.read("Sample::Widget#forget")).to eq("### #forget\n\n```\nforget -> nil\n```\n\nForgets the widget.\n")
     end
 
     it "answers a method with the block from every gem that documents it" do
@@ -286,7 +290,7 @@ RSpec.describe YardMd::Bundle do
       FileUtils.mkdir_p(File.join(cache, "stale-1.0.0"))
       resolve([gem_spec("stale", "1.0.0", "/nonexistent"), gem_spec("absent", "1.0.0", "/nonexistent"), *specs])
 
-      expect(bundle.read("Sample::Widget#forget")).to eq("### #forget\n\nForgets the widget.\n")
+      expect(bundle.read("Sample::Widget#forget")).to eq("### #forget\n\n```\nforget -> nil\n```\n\nForgets the widget.\n")
     end
 
     it "answers from the other gems when one was indexed by an earlier yard-md" do

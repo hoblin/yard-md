@@ -60,7 +60,8 @@ module Sample
     # :call-seq:
     #   paint(color) -> self
     #
-    # Same as [repainting](rdoc-ref:Sample::Widget#repaint) or +hue+[rdoc-ref:Sample::Widget#hue].
+    # Same as [repainting](rdoc-ref:Sample::Widget#repaint), +hue+[rdoc-ref:Sample::Widget#hue],
+    # {coloring}[rdoc-ref:Sample::Widget#color], [+tint+](rdoc-ref:Sample::Widget#color) or Sample[rdoc-ref:Sample].
     #
     # @param color [Symbol] the new color
     # @param options [Hash] painting options
@@ -93,6 +94,9 @@ module Sample
     def self.find(color)
     end
 
+    # :call-seq:
+    #   forget -> nil
+    #
     # Forgets the widget.
     # @return [void]
     def forget

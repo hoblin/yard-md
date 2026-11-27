@@ -11,7 +11,8 @@ module YardMd
   # The output directory is a cache: a gem whose <tt><gem>-<version></tt> directory
   # exists is skipped unless forced, and a directory appears only once its gem
   # is fully documented, so an interrupted or concurrent run leaves no partial
-  # one. Several projects can share it.
+  # one; what a run killed on this machine left half-written, the next run
+  # removes. Several projects can share it.
   #
   # @example
   #   YardMd::Bundle.new.document
@@ -102,12 +103,13 @@ module YardMd
     #   <tt>Faraday::Connection#run_request</tt>, <tt>Faraday.new</tt>; an
     #   empty constant is the top-level namespace: <tt>""</tt>, <tt>#puts</tt>
     # @return [String] for a class or module, its own documentation from every
-    #   gem that documents it, then one line per constant, class or module, and
-    #   method in it, from every gem that has them, each with what lies behind
-    #   it: a constant's value, a class's or module's kind and counts, a
-    #   method's summary; when it has nothing to list, one line with its kind
-    #   and gems; for a value constant or a method, its block of the page, from
-    #   every gem that documents it
+    #   gem that documents it, then its list: one line per constant, class or
+    #   module, and method in it, from every gem that has them, each with what
+    #   lies behind it (a constant's value, a class's or module's kind and
+    #   counts, a method's summary), or, when it has nothing to list, one line
+    #   with its kind and gems
+    # @return [String] for a value constant or a method, its block of the page,
+    #   from every gem that documents it
     # @return [nil] when no gem documents it
     # @raise [Error] when the bundle cannot be resolved
     def read(address)

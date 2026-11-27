@@ -47,6 +47,16 @@ RSpec.describe "exe/mdri" do
       expect(out).to be_empty
       expect(err).to eq("mdri: nothing in the bundle documents Sample::Widget#nope\n")
     end
+
+    it "says in one line that it cannot read what yard-md wrote" do
+      FileUtils.chmod(0o000, File.join(@home, "xdg/gem-docs/sample-0.1.0", YardMd::INDEX))
+
+      _, err, status = mdri("Sample")
+
+      expect(status).not_to be_success
+      expect(err.lines.size).to eq(1)
+      expect(err).to start_with("mdri: Permission denied")
+    end
   end
 
   it "says in one line why a bundle it cannot resolve stops it" do

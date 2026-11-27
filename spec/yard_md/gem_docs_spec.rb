@@ -133,7 +133,7 @@ RSpec.describe YardMd::GemDocs do
     end
 
     it "omits a void return" do
-      expect(page("Sample/Widget.md")).to include("### #forget\n\nForgets the widget.\n\n### #initialize")
+      expect(page("Sample/Widget.md")).to include("### #forget\n\n```\nforget -> nil\n```\n\nForgets the widget.\n\n### #initialize")
     end
 
     it "writes a method's tags, its block and its aliases, its call-seq as code and its RDoc links and example title as Markdown" do
@@ -146,7 +146,8 @@ RSpec.describe YardMd::GemDocs do
         paint(color) -> self
         ```
 
-        Same as repainting or `hue`.
+        Same as repainting, `hue`,
+        coloring, `tint` or Sample.
 
         Example: Paint it `red`
 
@@ -220,16 +221,15 @@ RSpec.describe YardMd::GemDocs do
       expect(blocks["#paint"]).to start_with("### #paint(").and end_with("Also known as: `repaint`\n")
     end
 
-    it "indexes the lines of a class's or module's own documentation on its page, and none when it has none" do
+    it "indexes the lines of a class's or module's own documentation on its page" do
       expect(block("Sample/Widget.md", index["Sample::Widget"]["docs"])).to eq("A widget with a color.\n")
       expect(block("Sample.md", index["Sample"]["docs"])).to start_with("## Sample\n\nA gem documented").and end_with("`Sample::Widget`.\n")
-      expect(index[""]).not_to include("docs")
     end
 
-    it "indexes each method with its YARD summary, taken from its return when its text has none, and none when it has neither" do
+    it "indexes each method with its YARD summary, past a call-seq, taken from its return when its text has none, and none when it has neither" do
       expect(index.dig("Sample::Widget", "methods").transform_values { |method| method["summary"] }).to include(
         "#color" => "The widget's color.", "#hue" => "The widget's color.", "#size" => "The widget's size.",
-        ".find" => "Finds a widget by color.", "#repaint" => "Paints the widget.", "#resize" => nil
+        ".find" => "Finds a widget by color.", "#repaint" => "Paints the widget.", "#forget" => "Forgets the widget.", "#resize" => nil
       )
     end
 

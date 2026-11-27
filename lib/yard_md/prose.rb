@@ -4,8 +4,11 @@ module YardMd
   # @api private
   class Prose
     DIRECTIVE = /\A[ \t]*:(?:markup|include|nodoc|doc|stopdoc|startdoc|enddoc|title|section|category|call-seq):/
-    REF_LINK = /\[([^\]]+)\]\(rdoc-ref:[^)]+\)/
-    CODE_REF = /(`[^`\n]*`)\[rdoc-ref:[^\]]+\]/
+    REFERENCES = [
+      [/\{([^{}]+)\}\[rdoc-ref:[^\]]+\]/, "\\1"],
+      [/\[([^\]]+)\]\(rdoc-ref:[^)]+\)/, "\\1"],
+      [/(`[^`\n]*`|\w+)\[rdoc-ref:[^\]]+\]/, "\\1"]
+    ].freeze
     FILE_MARKUP = /^\s*#\s*:markup:\s*(\w+)/
     LINK = /(\\|!)?\{(?!\})(\S+?)(?:\s([^}]*?\S))?\}/
     URL = %r{\A(?:\w+://|mailto:)}
@@ -56,9 +59,9 @@ module YardMd
         next line if fenced || line.start_with?("    ", "\t")
         next if line.match?(DIRECTIVE)
 
-        html = Prose.substitute(line.gsub(RDocMarkup::TELETYPE, "`\\2`"), RDocMarkup::HTML_EMPHASIS).gsub(CODE_REF, "\\1")
+        html = Prose.substitute(line.gsub(RDocMarkup::TELETYPE, "`\\2`"), [*RDocMarkup::HTML_EMPHASIS, *REFERENCES])
         Prose.outside_code(html) do |part|
-          part.gsub(REF_LINK, "\\1").gsub(LINK) { ($1) ? $~[0][1..] : link($2, $3) }
+          part.gsub(LINK) { ($1) ? $~[0][1..] : link($2, $3) }
         end
       end.join
     end

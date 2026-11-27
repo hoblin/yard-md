@@ -21,8 +21,8 @@ parser = OptionParser.new(<<~HELP)
   Each line of a list says what lies behind it: a constant's value, or its
   size when longer than a line of 80 characters; a class's or module's kind
   and how many constants, modules, classes and methods it holds; a method's
-  summary. A class or module with nothing to list answers with its kind and
-  the gems it is in.
+  summary. A class or module with nothing to list answers with its
+  documentation, then its kind and the gems it is in.
 
   Every gem in the bundle answers, so a namespace several gems add to lists
   them all, and a class a gem reopens, such as String, answers for that gem.

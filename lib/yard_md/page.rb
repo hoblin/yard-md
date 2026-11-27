@@ -9,6 +9,7 @@ module YardMd
     SCOPES = {class: ".", instance: "#"}.freeze
     SEPARATOR = "\n\n"
     INLINE = 80
+    CALL_SEQ = /\A\s*:call-seq:.*?(?:\n[ \t]*\n|\z)/m
 
     Entry = Data.define(:text, :group, :names, :detail) do
       def initialize(text:, group: nil, names: [], detail: {})
@@ -133,6 +134,7 @@ module YardMd
     def summary(method)
       overloads = method.tags(:overload)
       docstring = (overloads.one? && method.docstring.empty?) ? overloads.first.docstring : method.docstring
+      docstring = YARD::Docstring.new(docstring.sub(CALL_SEQ, "")) if docstring.match?(CALL_SEQ)
       returns = method.tags(:return)
       if docstring.summary.empty? && returns.one? && returns.first.text
         docstring = YARD::Docstring.new(returns.first.text.sub(/\A[a-z]/, &:upcase).strip)
