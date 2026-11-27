@@ -63,7 +63,7 @@ RSpec.describe "exe/mdri" do
   end
 
   it "reads the versions from Gemfile.lock alone, without resolving the Gemfile" do
-    run("yard-md")
+    expect(run("yard-md").last).to be_success
     File.write(File.join(@project, "Gemfile"), %(gem "absent", path: "../absent"\n))
 
     out, err, status = mdri("Sample::VERSION")

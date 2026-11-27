@@ -201,7 +201,7 @@ RSpec.describe YardMd::Bundle do
 
     before do
       expect { bundle.document }.to output.to_stdout
-      lock("sample (0.1.0)", "addon (1.0.0)")
+      lock("addon (1.0.0)", "sample (0.1.0)")
     end
 
     def lock(*gems, bundled_with: nil)
@@ -255,7 +255,7 @@ RSpec.describe YardMd::Bundle do
       LIST
     end
 
-    it "lists a class's constants, then its methods, attribute accessors and aliases gem by gem in the lockfile's order, in the order of their pages, each once with its summary" do
+    it "lists a class's constants, then its methods, attribute accessors and aliases gem by gem in name order, in the order of their pages, each once with its summary" do
       expect(bundle.read("Sample::Widget").lines(chomp: true)).to eq([
         "Sample::Widget::FINISHES — 82 characters", "Sample::Widget::SIZES = %i[small large].freeze",
         ".paint — Paints every widget.", "#buff — Buffs the widget with a matching cloth until it shines.",
@@ -283,7 +283,7 @@ RSpec.describe YardMd::Bundle do
       expect(bundle.read("Sample::Widget#forget")).to eq("### #forget\n\nForgets the widget.\n")
     end
 
-    it "answers a method with the block from every gem that documents it, in the lockfile's order" do
+    it "answers a method with the block from every gem that documents it, gem by gem in name order" do
       expect(bundle.read("Sample::Widget#paint")).to start_with("### #paint\n\nPaints the widget again.\n\n### #paint(color, options = {})")
         .and end_with("Also known as: `repaint`\n")
     end
@@ -318,7 +318,7 @@ RSpec.describe YardMd::Bundle do
 
     it "answers from the other gems when one has no index or no directory" do
       FileUtils.mkdir_p(File.join(cache, "stale-1.0.0"))
-      lock("stale (1.0.0)", "absent (1.0.0)", "sample (0.1.0)", "addon (1.0.0)")
+      lock("absent (1.0.0)", "addon (1.0.0)", "sample (0.1.0)", "stale (1.0.0)")
 
       expect(bundle.read("Sample::Widget#forget")).to eq("### #forget\n\nForgets the widget.\n")
     end

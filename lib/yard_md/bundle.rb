@@ -18,8 +18,8 @@ module YardMd
   #   YardMd::Bundle.new.document
   #   YardMd::Bundle.new.read("YARD::Registry.at")
   class Bundle
-    # A resolved gem: its code under +root+, all of it or only +files+, and its
-    # own directory at +path+.
+    # A gem at its version; resolved, also its code under +root+, all of it or
+    # only +files+, and its own directory at +path+.
     # @api private
     Spec = Data.define(:name, :version, :path, :root, :files) do
       def initialize(name:, version:, path:, root: path, files: [])
@@ -91,10 +91,10 @@ module YardMd
     end
 
     # Answers from the documentation {#document} wrote for the bundle's gems, at
-    # the versions the project's lockfile locks, found as Bundler finds it, and
-    # Bundler at the version it was bundled with. A gem not documented yet, or
-    # documented by yard-md 0.1.0, which wrote no index, does not answer, nor
-    # does one the lockfile locks for another platform only.
+    # the versions the project's lockfile locks, found as Bundler finds it, plus
+    # the bundler gem at its <tt>BUNDLED WITH</tt> version, gem by gem in name
+    # order. A gem not documented yet, or documented by yard-md 0.1.0, which
+    # wrote no index, does not answer.
     #
     # @param address [String] a constant, or a method of one:
     #   <tt>Faraday</tt>, <tt>Faraday::VERSION</tt>,
