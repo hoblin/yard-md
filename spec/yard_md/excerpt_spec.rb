@@ -10,8 +10,9 @@ RSpec.describe YardMd::Excerpt do
   end
 
   describe "#page" do
-    it "leaves an answer within every limit as it is" do
+    it "leaves an answer within every limit as it is, line endings included" do
       expect(excerpt("### #find\n\nFinds it.\n")).to eq("### #find\n\nFinds it.\n")
+      expect(excerpt("### #find\r\n\r\nFinds it.\r\n")).to eq("### #find\r\n\r\nFinds it.\r\n")
     end
 
     it "shows the first 100 lines, then the total and the command for the next" do

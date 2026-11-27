@@ -33,7 +33,7 @@ module YardMd
       count = text.scan(/\S+/).size
       text = "#{text[KEPT_WORDS]} … [+#{count - WORDS} words]" if count > WORDS
       text = text.gsub(LONG_WORD) { |word| "#{word[0, CHARS]}… [+#{word.size - CHARS} chars]" }
-      "#{text}#{line[/\n\z/]}"
+      "#{text}#{line[line.chomp.size..]}"
     end
   end
 end
