@@ -5,7 +5,7 @@ require "optparse"
 require "yard_md"
 
 parser = OptionParser.new(<<~HELP)
-  Documents a project's gems as Markdown, for people and coding agents to read.
+  yard-md — documents a project's gems as Markdown, for people and coding agents to read.
 
   Usage: yard-md [--force] [output dir]
 

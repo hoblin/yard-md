@@ -6,7 +6,7 @@ require "shellwords"
 require "yard_md"
 
 parser = OptionParser.new(<<~HELP)
-  Reads the documentation yard-md wrote for a project's gems, by constant.
+  mdri — reads the documentation yard-md wrote for a project's gems, by constant.
 
   Usage: mdri [--from N] <Constant>[#method|.method] [output dir]
 
