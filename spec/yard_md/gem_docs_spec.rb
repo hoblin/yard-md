@@ -136,13 +136,19 @@ RSpec.describe YardMd::GemDocs do
       expect(page("Sample/Widget.md")).to include("### #forget\n\nForgets the widget.\n\n### #initialize")
     end
 
-    it "writes a method's tags, its block and its aliases" do
+    it "writes a method's tags, its block and its aliases, its call-seq as code and its RDoc links and example title as Markdown" do
       expect(page("Sample/Widget.md")).to include(<<~MARKDOWN)
         ### #paint(color, options = {}) {|previous| ... }
 
         Paints the widget.
 
-        Example: Paint it red
+        ```
+        paint(color) -> self
+        ```
+
+        Same as repainting or `hue`.
+
+        Example: Paint it `red`
 
         ```ruby
         widget.paint(:red) { |previous| puts previous }
@@ -212,6 +218,12 @@ RSpec.describe YardMd::GemDocs do
         ".find" => "### .find(color)\n\nFinds a widget by color.\n\nDeprecated: Use `.where` instead.\n"
       )
       expect(blocks["#paint"]).to start_with("### #paint(").and end_with("Also known as: `repaint`\n")
+    end
+
+    it "indexes the lines of a class's or module's own documentation on its page, and none when it has none" do
+      expect(block("Sample/Widget.md", index["Sample::Widget"]["docs"])).to eq("A widget with a color.\n")
+      expect(block("Sample.md", index["Sample"]["docs"])).to start_with("## Sample\n\nA gem documented").and end_with("`Sample::Widget`.\n")
+      expect(index[""]).not_to include("docs")
     end
 
     it "indexes each method with its YARD summary, taken from its return when its text has none, and none when it has neither" do

@@ -12,10 +12,11 @@ parser = OptionParser.new(<<~HELP)
   Run in a project. Reads the documentation yard-md wrote into <output dir>
   for the gems its bundle resolves on this platform, at those versions:
 
-    mdri Faraday                   its constants, classes, modules and methods
-    mdri Faraday::Connection#get   that instance method's documentation
-    mdri Faraday.new               that class method's documentation
-    mdri Faraday::VERSION          that constant's value and documentation
+    mdri Faraday                           its documentation, then its constants,
+                                           classes, modules and methods
+    mdri Faraday::Connection#run_request   that instance method's documentation
+    mdri Faraday.new                       that class method's documentation
+    mdri Faraday::VERSION                  that constant's value and documentation
 
   Each line of a list says what lies behind it: a constant's value, or its
   size when longer than a line of 80 characters; a class's or module's kind
@@ -38,12 +39,14 @@ parser = OptionParser.new(<<~HELP)
 HELP
 parser.version = YardMd::VERSION
 
+trap("INT") { exit 130 }
+
 begin
   address, *output = parser.parse(ARGV)
   abort parser.help unless address && output.size <= 1
   answer = YardMd::Bundle.new(*output).read(address)
   abort "mdri: nothing in the bundle documents #{address}" unless answer
   print answer
-rescue OptionParser::ParseError, YardMd::Error
+rescue OptionParser::ParseError, YardMd::Error, SystemCallError
   parser.abort
 end

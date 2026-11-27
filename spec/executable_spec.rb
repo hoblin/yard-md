@@ -56,6 +56,31 @@ RSpec.describe "exe/yard-md" do
     expect(out.lines(chomp: true)).to include("sample-0.1.0")
   end
 
+  it "says in one line that it cannot write its output directory" do
+    FileUtils.mkdir_p(output)
+    FileUtils.chmod(0o555, output)
+
+    _, err, status = yard_md("docs")
+
+    expect(status).not_to be_success
+    expect(err).to start_with("yard-md: Permission denied").and include(output).and satisfy { |text| text.lines.one? }
+  end
+
+  it "stops quietly on Ctrl-C, leaving no gem half-documented" do
+    out, err = File.join(@home, "out"), File.join(@home, "err")
+    pid = Bundler.with_unbundled_env do
+      Process.spawn({"XDG_CACHE_HOME" => File.join(@home, "xdg")}, RbConfig.ruby, *load_path, File.join(root, "exe", "yard-md"), "docs",
+        chdir: @project, pgroup: true, out: out, err: err)
+    end
+    sleep 0.05 until Dir.exist?(output) && Dir.glob(".yard-md-*", base: output).any?
+
+    Process.kill("INT", -pid)
+
+    expect(Process.wait2(pid).last.exitstatus).to eq(130)
+    expect(File.read(err)).to be_empty
+    expect(Dir.children(output)).to all(match(/\A[^.]/))
+  end
+
   it "says in one line why a bundle it cannot resolve stops it" do
     File.write(File.join(@project, "Gemfile"), %(warn "loading gems"\ngem "absent", path: "../absent"\n))
 

@@ -34,6 +34,9 @@ module YardMd
     end
 
     # @api private
+    SCRATCH = ".yard-md-"
+
+    # @api private
     NOUNS = {"constant" => "constants", "module" => "modules", "class" => "classes", "method" => "methods"}.freeze
 
     # Run by the project's Ruby, it writes into the file named by its argument
@@ -86,6 +89,7 @@ module YardMd
     def document
       resolved = specs
       FileUtils.mkdir_p(@output)
+      sweep
       resolved.map { |spec| build(spec) }.all?
     end
 
@@ -95,14 +99,15 @@ module YardMd
     #
     # @param address [String] a constant, or a method of one:
     #   <tt>Faraday</tt>, <tt>Faraday::VERSION</tt>,
-    #   <tt>Faraday::Connection#get</tt>, <tt>Faraday.new</tt>; an empty
-    #   constant is the top-level namespace: <tt>""</tt>, <tt>#puts</tt>
-    # @return [String] for a class or module, one line per constant, class or
-    #   module, and method in it, from every gem that has them, each with what
-    #   lies behind it: a constant's value, a class's or module's kind and
-    #   counts, a method's summary; when it has nothing to list, one line with
-    #   its kind and gems; for a value constant or a method, its block of the
-    #   page, from every gem that documents it
+    #   <tt>Faraday::Connection#run_request</tt>, <tt>Faraday.new</tt>; an
+    #   empty constant is the top-level namespace: <tt>""</tt>, <tt>#puts</tt>
+    # @return [String] for a class or module, its own documentation from every
+    #   gem that documents it, then one line per constant, class or module, and
+    #   method in it, from every gem that has them, each with what lies behind
+    #   it: a constant's value, a class's or module's kind and counts, a
+    #   method's summary; when it has nothing to list, one line with its kind
+    #   and gems; for a value constant or a method, its block of the page, from
+    #   every gem that documents it
     # @return [nil] when no gem documents it
     # @raise [Error] when the bundle cannot be resolved
     def read(address)
@@ -115,7 +120,10 @@ module YardMd
       return blocks(indexes, constant, "methods", method) unless method.empty?
 
       namespace, _, name = constant.rpartition("::")
-      listing(indexes, constant) || blocks(indexes, namespace, "constants", name)
+      list = listing(indexes, constant)
+      return blocks(indexes, namespace, "constants", name) unless list
+
+      [*indexes.filter_map { |spec, index| slice(spec, index, constant, index.dig(constant, "docs", "lines")) }, list].join("\n")
     end
 
     private
@@ -189,11 +197,13 @@ module YardMd
     end
 
     def blocks(indexes, namespace, group, name)
-      blocks = indexes.filter_map do |spec, index|
-        first, last = index.dig(namespace, group, name, "lines")
-        File.readlines(File.join(directory(spec), index.dig(namespace, "page")))[(first - 1)...last].join if first
-      end
+      blocks = indexes.filter_map { |spec, index| slice(spec, index, namespace, index.dig(namespace, group, name, "lines")) }
       blocks.join("\n") unless blocks.empty?
+    end
+
+    def slice(spec, index, namespace, lines)
+      first, last = lines
+      File.readlines(File.join(directory(spec), index.dig(namespace, "page")))[(first - 1)...last].join if first
     end
 
     def inside?(path, namespace)
@@ -213,7 +223,7 @@ module YardMd
       name = File.basename(target)
       return true if !@force && File.exist?(target)
 
-      staging = Dir.mktmpdir(".#{name}-", @output)
+      staging = Dir.mktmpdir(scratch(name), @output)
       return false unless write(spec, name, staging)
 
       publish(staging, target)
@@ -246,11 +256,29 @@ module YardMd
     end
 
     def retire(target)
-      Dir.mktmpdir(".#{File.basename(target)}-", @output) do |retired|
+      Dir.mktmpdir(scratch(File.basename(target)), @output) do |retired|
         File.rename(target, File.join(retired, "docs"))
       rescue Errno::ENOENT
         nil
       end
+    end
+
+    def scratch(name)
+      "#{SCRATCH}#{Process.pid}-#{name}-"
+    end
+
+    def sweep
+      Dir.glob("#{SCRATCH}*", base: @output).each do |entry|
+        FileUtils.rm_rf(File.join(@output, entry)) unless alive?(entry.delete_prefix(SCRATCH).to_i)
+      end
+    end
+
+    def alive?(pid)
+      Process.kill(0, pid)
+    rescue Errno::ESRCH
+      false
+    rescue Errno::EPERM
+      true
     end
   end
 end

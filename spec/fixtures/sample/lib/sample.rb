@@ -57,13 +57,18 @@ module Sample
 
     # Paints the widget.
     #
+    # :call-seq:
+    #   paint(color) -> self
+    #
+    # Same as [repainting](rdoc-ref:Sample::Widget#repaint) or +hue+[rdoc-ref:Sample::Widget#hue].
+    #
     # @param color [Symbol] the new color
     # @param options [Hash] painting options
     # @option options [Boolean] :glossy (false) whether to add gloss
     # @yieldparam previous [Symbol] the color before painting
     # @return [self]
     # @raise [ArgumentError] when the color is unknown
-    # @example Paint it red
+    # @example Paint it +red+
     #
     #   widget.paint(:red) { |previous| puts previous }
     # @see Sample::Widget#color

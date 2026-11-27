@@ -30,15 +30,17 @@ Each gem's directory holds:
 ## Reading
 
 ```sh
-mdri Faraday                   # its constants, classes, modules and methods
-mdri Faraday::Connection#get   # that instance method's documentation
-mdri Faraday.new               # that class method's documentation
-mdri Faraday::VERSION          # that constant's value and documentation
+mdri Faraday                            # its documentation, then its constants, classes, modules and methods
+mdri Faraday::Connection#run_request    # that instance method's documentation
+mdri Faraday.new                        # that class method's documentation
+mdri Faraday::VERSION                   # that constant's value and documentation
 ```
 
-Each line of a list says what lies behind it, so the next call goes where it should. `mdri YardMd`:
+A class or module answers with its own documentation, then its list, and each line of the list says what lies behind it, so the next call goes where it should. `mdri YardMd`:
 
 ```
+The documentation of installed gems as plain Markdown.
+
 YardMd::CACHE = File.join(cache_home, "gem-docs")
 YardMd::VERSION = "0.1.0"
 YardMd::Bundle — class, 3 methods

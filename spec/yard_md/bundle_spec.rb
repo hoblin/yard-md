@@ -78,6 +78,17 @@ RSpec.describe YardMd::Bundle do
       end
     end
 
+    it "removes what a killed run left half-written, and leaves a live run's alone" do
+      dead = Process.spawn("true").tap { |pid| Process.wait(pid) }
+      FileUtils.mkdir_p(File.join(cache, ".yard-md-#{dead}-sample-0.1.0-20261127-#{dead}-abc/docs"))
+      FileUtils.mkdir_p(File.join(cache, ".yard-md-#{Process.pid}-other-1.0.0-20261127-#{Process.pid}-abc"))
+      FileUtils.mkdir_p(File.join(cache, ".unrelated"))
+
+      expect { bundle.document }.to output.to_stdout
+
+      expect(Dir.children(cache)).to contain_exactly("sample-0.1.0", ".yard-md-#{Process.pid}-other-1.0.0-20261127-#{Process.pid}-abc", ".unrelated")
+    end
+
     it "skips a gem whose directory already exists" do
       FileUtils.mkdir_p(File.join(cache, "sample-0.1.0"))
 
@@ -190,8 +201,13 @@ RSpec.describe YardMd::Bundle do
 
     before { expect { bundle.document }.to output.to_stdout }
 
+    it "answers a class or module with its own documentation from every gem that documents it, then its list" do
+      expect(bundle.read("Sample::Widget")).to start_with("A widget with a color.\n\nA widget another gem adds to.\n\nSample::Widget::FINISHES")
+      expect(bundle.read("Sample")).to start_with("## Sample\n\nA gem documented in RDoc markup").and include("`Sample::Widget`.\n\nSample::LIMITS")
+    end
+
     it "lists a namespace's constants, then its classes and modules from every gem that adds to them, each once with what it holds" do
-      expect(bundle.read("Sample")).to eq(<<~LIST)
+      expect(bundle.read("Sample")).to end_with(<<~LIST)
         Sample::LIMITS — 4 lines
         Sample::VERSION = "0.1.0"
         Sample::Empty — module, 1 class
@@ -202,7 +218,7 @@ RSpec.describe YardMd::Bundle do
     end
 
     it "lists a class's constants, then its methods, attribute accessors and aliases in the order of its pages, each once with its summary" do
-      expect(bundle.read("Sample::Widget").lines(chomp: true)).to eq([
+      expect(bundle.read("Sample::Widget").lines(chomp: true).drop(4)).to eq([
         "Sample::Widget::FINISHES — 82 characters", "Sample::Widget::SIZES = %i[small large].freeze",
         "#color — The widget's color.", "#color= — The widget's color.", "#hue — The widget's color.",
         "#finish= — Sets the finish.", "#size — The widget's size.", ".find — Finds a widget by color.",
@@ -219,9 +235,13 @@ RSpec.describe YardMd::Bundle do
       expect(bundle.read("ADDON_LOADED")).to eq("### ADDON_LOADED = true\n\nWhether the addon is loaded.\n")
     end
 
-    it "answers a class or module it has nothing to list in with its kind and gem" do
-      expect(bundle.read("Sample::Gadget")).to eq("Sample::Gadget — class in addon 1.0.0, with no constants, classes or methods\n")
-      expect(bundle.read("Sample::Empty::Inner")).to eq("Sample::Empty::Inner — class in sample 0.1.0, with no constants, classes or methods\n")
+    it "answers a class or module it has nothing to list in with its documentation, then its kind and gem" do
+      expect(bundle.read("Sample::Gadget")).to eq(<<~ANSWER)
+        A gadget another gem adds to Sample.
+
+        Sample::Gadget — class in addon 1.0.0, with no constants, classes or methods
+      ANSWER
+      expect(bundle.read("Sample::Empty")).to eq("Sample::Empty::Inner — class\n")
     end
 
     it "answers a method with its block of the page and nothing else" do
@@ -273,7 +293,7 @@ RSpec.describe YardMd::Bundle do
       File.write(File.join(cache, "addon-1.0.0", YardMd::INDEX), JSON.generate("" => {}, "Sample::Widget" => {page: "Sample/Widget.md", methods: {"#polish" => [1, 2]}}))
 
       expect(bundle.read("Sample::Widget#polish")).to be_nil
-      expect(bundle.read("Sample")).to eq(<<~LIST)
+      expect(bundle.read("Sample")).to end_with(<<~LIST)
         Sample::LIMITS — 4 lines
         Sample::VERSION = "0.1.0"
         Sample::Empty — module, 1 class

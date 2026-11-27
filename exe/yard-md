@@ -38,11 +38,13 @@ parser.on_tail("-v", "--version", "prints the version") do
   exit
 end
 
+trap("INT") { exit 130 }
+
 begin
   options = {}
   arguments = parser.parse(ARGV, into: options)
   abort parser.help if arguments.size > 1
   exit YardMd::Bundle.new(*arguments, **options).document
-rescue OptionParser::ParseError, YardMd::Error
+rescue OptionParser::ParseError, YardMd::Error, SystemCallError
   parser.abort
 end
