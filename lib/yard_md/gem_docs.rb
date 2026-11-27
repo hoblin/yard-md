@@ -12,7 +12,7 @@ module YardMd
 
     def write(output, log = $stderr)
       output = File.expand_path(output)
-      Dir.chdir(source_root) do
+      Dir.chdir(@spec.root) do
         yardoc = parse(log)
         pages(yardoc, output)
         extra_files(yardoc.options.files, output)
@@ -22,22 +22,12 @@ module YardMd
 
     private
 
-    def source_root
-      @spec.default_gem? ? RbConfig::CONFIG["rubylibdir"] : @spec.full_gem_path
-    end
-
-    def sources
-      return [] unless @spec.default_gem?
-
-      @spec.files.filter_map { |file| file.delete_prefix("lib/") if file.start_with?("lib/") && file.end_with?(".rb") }
-    end
-
     def parse(log)
       YARD::Config.options[:safe_mode] = true
       YARD::Logger.instance.io = log
       YARD::Registry.clear
       YARD::CLI::Yardoc.new.tap do |yardoc|
-        yardoc.parse_arguments(*YARDOC_ARGS, *sources)
+        yardoc.parse_arguments(*YARDOC_ARGS, *@spec.files)
         YARD::Logger.instance.show_backtraces = false
         yardoc.run(nil)
       end
@@ -65,7 +55,7 @@ module YardMd
     end
 
     def directories(output)
-      DIRECTORIES.map { |directory| File.join(@spec.full_gem_path, directory) }.each do |directory|
+      DIRECTORIES.map { |directory| File.join(@spec.path, directory) }.each do |directory|
         FileUtils.cp_r(directory, output) if File.directory?(directory) && !output.start_with?("#{directory}/")
       end
     end

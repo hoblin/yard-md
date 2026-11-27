@@ -4,6 +4,10 @@ module YardMd
   # The documentation of every gem the current project's bundle resolves on
   # this platform, written as Markdown into one directory per gem version.
   #
+  # The bundle is resolved by the project's own Ruby through <tt>mise exec</tt>
+  # where mise is installed, otherwise by the +ruby+ on the PATH, so it need not
+  # be the Ruby yard-md runs on. mise installs no missing tool for it.
+  #
   # The output directory is a cache: a gem whose <tt><gem>-<version></tt> directory
   # exists is skipped unless forced, and a directory appears only once its gem
   # is fully documented, so an interrupted or concurrent run leaves no partial
@@ -13,6 +17,43 @@ module YardMd
   #   YardMd::Bundle.new.document
   #   YardMd::Bundle.new.read("YARD::Registry.at")
   class Bundle
+    # A resolved gem: its code under +root+, all of it or only +files+, and its
+    # own directory at +path+.
+    # @api private
+    Spec = Data.define(:name, :version, :path, :root, :files) do
+      def initialize(name:, version:, path:, root: path, files: [])
+        super
+      end
+    end
+
+    # Run by the project's Ruby, it writes into the file named by its argument
+    # the bundle's {Spec}s, or Bundler's error, as JSON; what the Gemfile
+    # prints goes wherever it goes.
+    # @api private
+    RESOLVER = <<~RUBY
+      require "bundler"
+      require "json"
+
+      Bundler.ui = Bundler::UI::Silent.new
+      lib = RbConfig::CONFIG["rubylibdir"]
+      result = begin
+        specs = Bundler.definition.specs.map do |spec|
+          entry = {name: spec.name, version: spec.version.to_s, path: spec.full_gem_path}
+          next entry unless spec.default_gem?
+
+          files = spec.files.filter_map do |file|
+            file = file.delete_prefix("lib/")
+            file if file.end_with?(".rb") && File.file?(File.join(lib, file))
+          end
+          entry.merge(root: lib, files: files)
+        end
+        {specs: specs}
+      rescue Bundler::BundlerError => error
+        {error: error.message}
+      end
+      File.write(ARGV.fetch(0), JSON.generate(result))
+    RUBY
+
     # @param output [String] the directory to write into, created when missing,
     #   and read from
     # @param force [Boolean] rebuild the bundle's gems whose directories exist,
@@ -30,11 +71,12 @@ module YardMd
     # traces; the gem still counts as documented.
     #
     # @return [Boolean] whether every gem is documented
-    # @raise [Bundler::BundlerError] when the bundle cannot be resolved, e.g.
-    #   a gem in it is not installed
+    # @raise [Error] when the bundle cannot be resolved, e.g. a gem in it is not
+    #   installed
     def document
+      resolved = specs
       FileUtils.mkdir_p(@output)
-      specs.map { |spec| build(spec) }.all?
+      resolved.map { |spec| build(spec) }.all?
     end
 
     # Answers from the documentation {#document} wrote for the bundle's gems, at
@@ -49,7 +91,7 @@ module YardMd
     #   neither; for a method, its block of the page, from every gem that
     #   documents it
     # @return [nil] when no gem documents it
-    # @raise [Bundler::BundlerError] when the bundle cannot be resolved
+    # @raise [Error] when the bundle cannot be resolved
     def read(address)
       constant, method = address.match(/\A([^#.]*)(.*)\z/m).captures
       indexes = specs.filter_map do |spec|
@@ -63,8 +105,21 @@ module YardMd
     private
 
     def specs
-      Bundler.ui = Bundler::UI::Silent.new
-      Bundler.definition.specs
+      Tempfile.create("yard-md-bundle") do |answer|
+        _, err, = ruby("-e", RESOLVER, answer.path)
+        raise Error, err.strip if answer.size.zero?
+
+        result = JSON.parse(answer.read, symbolize_names: true)
+        raise Error, result[:error] if result[:error]
+
+        result[:specs].map { |spec| Spec.new(**spec) }
+      end
+    end
+
+    def ruby(*args)
+      Open3.capture3({"MISE_EXEC_AUTO_INSTALL" => "false"}, "mise", "exec", "--", "ruby", *args)
+    rescue Errno::ENOENT
+      Open3.capture3("ruby", *args)
     end
 
     def directory(spec)
