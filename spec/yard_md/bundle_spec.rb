@@ -15,8 +15,15 @@ RSpec.describe YardMd::Bundle do
     {name: name, version: version, path: path}
   end
 
+  def answering(result, err = "")
+    proc do |*args|
+      File.write(args.last, JSON.generate(result)) if result
+      ["", err, nil]
+    end
+  end
+
   def resolve(specs)
-    allow(Open3).to receive(:capture3).and_return([JSON.generate(specs), "", instance_double(Process::Status, success?: true)])
+    allow(Open3).to receive(:capture3, &answering(specs: specs))
   end
 
   def widget_page
@@ -130,43 +137,48 @@ RSpec.describe YardMd::Bundle do
   end
 
   describe "resolving the bundle" do
-    let(:resolved) { [JSON.generate([sample]), "", instance_double(Process::Status, success?: true)] }
-
     it "asks the project's Ruby through mise where mise is installed, letting mise install nothing" do
       expect(Open3).to receive(:capture3)
-        .with({"MISE_EXEC_AUTO_INSTALL" => "false"}, "mise", "exec", "--", "ruby", "-e", described_class::RESOLVER)
-        .and_return(resolved)
+        .with({"MISE_EXEC_AUTO_INSTALL" => "false"}, "mise", "exec", "--", "ruby", "-e", described_class::RESOLVER, kind_of(String))
+        .and_invoke(answering(specs: [sample]))
 
       expect { bundle.document }.to output("sample-0.1.0\n").to_stdout
     end
 
     it "asks the Ruby on the PATH where mise is not installed" do
       expect(Open3).to receive(:capture3).with(anything, "mise", any_args).and_raise(Errno::ENOENT)
-      expect(Open3).to receive(:capture3).with("ruby", "-e", described_class::RESOLVER).and_return(resolved)
+      expect(Open3).to receive(:capture3).with("ruby", "-e", described_class::RESOLVER, kind_of(String)).and_invoke(answering(specs: [sample]))
 
       expect { bundle.document }.to output("sample-0.1.0\n").to_stdout
     end
 
-    it "fails with the project's own message, writing nothing, when the bundle cannot be resolved" do
-      failed = instance_double(Process::Status, success?: false)
-      allow(Open3).to receive(:capture3).and_return(["", "Could not find absent-1.0.0 in locally installed gems\n", failed])
+    it "fails with Bundler's message alone, writing nothing, when the bundle cannot be resolved" do
+      allow(Open3).to receive(:capture3, &answering({error: "Could not find absent-1.0.0 in locally installed gems"}, "loading gems\n"))
       FileUtils.rm_rf(cache)
 
       expect { bundle.document }.to raise_error(YardMd::Error, "Could not find absent-1.0.0 in locally installed gems")
       expect(File.exist?(cache)).to be(false)
     end
 
+    it "fails with what the project's Ruby printed when it gives no answer" do
+      allow(Open3).to receive(:capture3, &answering(nil, "mise ERROR ruby is not installed\n"))
+
+      expect { bundle.document }.to raise_error(YardMd::Error, "mise ERROR ruby is not installed")
+    end
+
     it "gives a default gem's Ruby files in its Ruby's own library directory, and nothing else" do
       allow(Open3).to receive(:capture3).and_call_original
       optparse = Gem::Specification.find { |spec| spec.default_gem? && spec.name == "optparse" }
-      out, err, status = Dir.mktmpdir do |project|
+      answer, err = Dir.mktmpdir do |project|
         File.write(File.join(project, "Gemfile"), %(gem "optparse", "#{optparse.version}"\n))
-        Bundler.with_unbundled_env { Open3.capture3(RbConfig.ruby, "-e", described_class::RESOLVER, chdir: project) }
+        file = File.join(project, "answer.json")
+        _, err, = Bundler.with_unbundled_env { Open3.capture3(RbConfig.ruby, "-e", described_class::RESOLVER, file, chdir: project) }
+        [File.exist?(file) && File.read(file), err]
       end
       lib = RbConfig::CONFIG["rubylibdir"]
 
-      expect(status).to be_success, err
-      resolved = JSON.parse(out, symbolize_names: true).find { |spec| spec[:name] == "optparse" }
+      expect(answer).to be_truthy, err
+      resolved = JSON.parse(answer, symbolize_names: true)[:specs].find { |spec| spec[:name] == "optparse" }
       expect(resolved[:root]).to eq(lib)
       expect(resolved[:files]).to include("optparse.rb", "optparse/time.rb")
         .and all(end_with(".rb").and(satisfy { |file| File.file?(File.join(lib, file)) }))

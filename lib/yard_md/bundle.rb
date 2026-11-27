@@ -26,19 +26,18 @@ module YardMd
       end
     end
 
-    # Run by the project's Ruby, it prints the bundle's {Spec}s as JSON on
-    # stdout, and anything the Gemfile prints on stderr; or fails with
-    # Bundler's message.
+    # Run by the project's Ruby, it writes into the file named by its argument
+    # the bundle's {Spec}s, or Bundler's error, as JSON; what the Gemfile
+    # prints goes wherever it goes.
     # @api private
     RESOLVER = <<~RUBY
       require "bundler"
       require "json"
 
-      $stdout = $stderr
       Bundler.ui = Bundler::UI::Silent.new
       lib = RbConfig::CONFIG["rubylibdir"]
-      specs = begin
-        Bundler.definition.specs.map do |spec|
+      result = begin
+        specs = Bundler.definition.specs.map do |spec|
           entry = {name: spec.name, version: spec.version.to_s, path: spec.full_gem_path}
           next entry unless spec.default_gem?
 
@@ -48,10 +47,11 @@ module YardMd
           end
           entry.merge(root: lib, files: files)
         end
+        {specs: specs}
       rescue Bundler::BundlerError => error
-        abort error.message
+        {error: error.message}
       end
-      STDOUT.puts JSON.generate(specs)
+      File.write(ARGV.fetch(0), JSON.generate(result))
     RUBY
 
     # @param output [String] the directory to write into, created when missing,
@@ -105,10 +105,15 @@ module YardMd
     private
 
     def specs
-      out, err, status = ruby("-e", RESOLVER)
-      raise Error, err.strip unless status.success?
+      Tempfile.create("yard-md-bundle") do |answer|
+        _, err, = ruby("-e", RESOLVER, answer.path)
+        raise Error, err.strip if answer.size.zero?
 
-      JSON.parse(out, symbolize_names: true).map { |spec| Spec.new(**spec) }
+        result = JSON.parse(answer.read, symbolize_names: true)
+        raise Error, result[:error] if result[:error]
+
+        result[:specs].map { |spec| Spec.new(**spec) }
+      end
     end
 
     def ruby(*args)

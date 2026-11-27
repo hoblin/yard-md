@@ -4,6 +4,7 @@ require "fileutils"
 require "json"
 require "open3"
 require "stringio"
+require "tempfile"
 require "tmpdir"
 require "yard"
 

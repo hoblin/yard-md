@@ -48,7 +48,7 @@ RSpec.describe "exe/yard-md" do
   end
 
   it "documents the bundle of a Gemfile that prints as it loads" do
-    File.write(File.join(@project, "Gemfile"), %(puts "loading gems"\n#{File.read(File.join(@project, "Gemfile"))}))
+    File.write(File.join(@project, "Gemfile"), %(STDOUT.puts "loading"\nsystem("echo gems")\n#{File.read(File.join(@project, "Gemfile"))}))
 
     out, err, status = yard_md("docs")
 
@@ -57,7 +57,7 @@ RSpec.describe "exe/yard-md" do
   end
 
   it "says in one line why a bundle it cannot resolve stops it" do
-    File.write(File.join(@project, "Gemfile"), %(gem "absent", path: "../absent"\n))
+    File.write(File.join(@project, "Gemfile"), %(warn "loading gems"\ngem "absent", path: "../absent"\n))
 
     _, err, status = yard_md("docs")
 
