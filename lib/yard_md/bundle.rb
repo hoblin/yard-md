@@ -34,7 +34,7 @@ module YardMd
     end
 
     # @api private
-    NOUNS = {"module" => "modules", "class" => "classes", "method" => "methods"}.freeze
+    NOUNS = {"constant" => "constants", "module" => "modules", "class" => "classes", "method" => "methods"}.freeze
 
     # Run by the project's Ruby, it writes into the file named by its argument
     # the bundle's {Spec}s, or Bundler's error, as JSON; what the Gemfile
@@ -148,14 +148,23 @@ module YardMd
       children = namespaces.keys.select { |path| inside?(path, constant) }.sort
       return unless namespace || children.any?
 
+      held = held(namespaces)
       lines = [
-        *namespace&.constants&.sort&.map { |name, detail| constant_line(qualified(constant, name), detail["value"]) },
-        *children.map { |path| [path, [namespaces[path].kind, *counts(namespaces, path)].join(", ")].join(" — ") },
+        *namespace&.constants&.sort&.map { |name, detail| constant_line(qualified(constant, name), detail) },
+        *children.map { |path| [path, [namespaces[path].kind, *counts(held[path])].join(", ")].join(" — ") },
         *namespace&.methods&.map { |name, detail| [name, detail["summary"]].compact.join(" — ") }
       ]
       return lines.map { |line| "#{line}\n" }.join if lines.any?
 
-      "#{constant} — #{namespace.kind} in #{namespace.gems.join(", ")}, nothing documented in it\n"
+      "#{constant} — #{namespace.kind} in #{namespace.gems.join(", ")}, with no constants, classes or methods\n"
+    end
+
+    def held(namespaces)
+      namespaces.each_with_object(Hash.new { |held, path| held[path] = Hash.new(0) }) do |(path, namespace), held|
+        held[path]["constant"] += namespace.constants.size
+        held[path]["method"] += namespace.methods.size
+        held[parent(path)][namespace.kind] += 1 unless path.empty?
+      end
     end
 
     def namespaces(indexes, constant)
@@ -171,20 +180,17 @@ module YardMd
       end
     end
 
-    def counts(namespaces, path)
-      kinds = namespaces.filter_map { |inner, namespace| namespace.kind if inside?(inner, path) }.tally
-      kinds["method"] = namespaces[path].methods.size
-      NOUNS.filter_map { |noun, plural| "#{kinds[noun]} #{(kinds[noun] == 1) ? noun : plural}" if kinds[noun].to_i.positive? }
+    def counts(held)
+      NOUNS.filter_map { |noun, plural| "#{held[noun]} #{(held[noun] == 1) ? noun : plural}" if held[noun].positive? }
     end
 
-    def constant_line(path, value)
-      lines = value.lines.size
-      (lines > 1) ? "#{path} — #{lines} lines" : "#{path} = #{value}"
+    def constant_line(path, detail)
+      detail.key?("value") ? "#{path} = #{detail["value"]}" : "#{path} — #{detail["size"]}"
     end
 
-    def blocks(indexes, namespace, members, name)
+    def blocks(indexes, namespace, group, name)
       blocks = indexes.filter_map do |spec, index|
-        first, last = index.dig(namespace, members, name, "lines")
+        first, last = index.dig(namespace, group, name, "lines")
         File.readlines(File.join(directory(spec), index.dig(namespace, "page")))[(first - 1)...last].join if first
       end
       blocks.join("\n") unless blocks.empty?

@@ -8,6 +8,7 @@ module YardMd
 
     SCOPES = {class: ".", instance: "#"}.freeze
     SEPARATOR = "\n\n"
+    INLINE = 80
 
     Entry = Data.define(:text, :group, :names, :detail) do
       def initialize(text:, group: nil, names: [], detail: {})
@@ -75,9 +76,17 @@ module YardMd
       Entry.new(
         text: [heading, docs(constant, 3)].reject(&:empty?).join(SEPARATOR),
         group: :constants,
-        names: [constant.name.to_s],
-        detail: {value: value}
+        names: (constant.type == :constant) ? [constant.name.to_s] : [],
+        detail: shown(value)
       )
+    end
+
+    def shown(value)
+      lines = value.lines.size
+      if lines > 1 then {size: "#{lines} lines"}
+      elsif value.size > INLINE then {size: "#{value.size} characters"}
+      else {value: value}
+      end
     end
 
     def attributes(scope)

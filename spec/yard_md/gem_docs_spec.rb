@@ -221,10 +221,10 @@ RSpec.describe YardMd::GemDocs do
       )
     end
 
-    it "indexes each constant with its value and the lines of its block" do
-      expect(index.dig("Sample", "constants").transform_values { |constant| [constant["value"], block("Sample.md", constant)] }).to eq(
-        "LIMITS" => ["{\n  min: 1,\n  max: 10\n}.freeze", "### LIMITS\n\n```ruby\nLIMITS = {\n  min: 1,\n  max: 10\n}.freeze\n```\n"],
-        "VERSION" => ["\"0.1.0\"", "### VERSION = \"0.1.0\"\n"]
+    it "indexes each constant with the lines of its block, and its value when short or else its size" do
+      expect(index.dig("Sample", "constants").transform_values { |constant| [constant.except("lines"), block("Sample.md", constant)] }).to eq(
+        "LIMITS" => [{"size" => "4 lines"}, "### LIMITS\n\n```ruby\nLIMITS = {\n  min: 1,\n  max: 10\n}.freeze\n```\n"],
+        "VERSION" => [{"value" => "\"0.1.0\""}, "### VERSION = \"0.1.0\"\n"]
       )
     end
 

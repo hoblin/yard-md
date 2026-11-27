@@ -24,6 +24,20 @@ RSpec.describe "exe/mdri" do
       expect(out).to eq("### .find(color)\n\nFinds a widget by color.\n\nDeprecated: Use `.where` instead.\n")
     end
 
+    it "prints a constant's documentation" do
+      out, err, status = mdri("Sample::VERSION")
+
+      expect(status).to be_success, err
+      expect(out).to eq(%(### VERSION = "0.1.0"\n))
+    end
+
+    it "says, and succeeds, that a class it has nothing to list in exists" do
+      out, err, status = mdri("Sample::Notes")
+
+      expect(status).to be_success, err
+      expect(out).to eq("Sample::Notes — class in sample 0.1.0, with no constants, classes or methods\n")
+    end
+
     it "says on stderr that nothing documents what it was asked" do
       out, err, status = mdri("Sample::Widget#nope")
 
