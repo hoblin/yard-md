@@ -30,22 +30,24 @@ Each gem's directory holds:
 ## Reading
 
 ```sh
-mdri Faraday                   # its constants, classes, modules and methods
-mdri Faraday::Connection#get   # that instance method's documentation
-mdri Faraday.new               # that class method's documentation
-mdri Faraday::VERSION          # that constant's value and documentation
+mdri Faraday                            # its documentation, then its constants, classes, modules and methods
+mdri Faraday::Connection#run_request    # that instance method's documentation
+mdri Faraday.new                        # that class method's documentation
+mdri Faraday::VERSION                   # that constant's value and documentation
 ```
 
-Each line of a list says what lies behind it, so the next call goes where it should. `mdri YardMd`:
+A class or module answers with its own documentation, then its list, and each line of the list says what lies behind it, so the next call goes where it should. `mdri YardMd`:
 
 ```
+The documentation of installed gems as plain Markdown.
+
 YardMd::CACHE = File.join(cache_home, "gem-docs")
 YardMd::VERSION = "0.1.0"
 YardMd::Bundle — class, 3 methods
 YardMd::Error — class
 ```
 
-A constant shows its value, or its size when longer than a line of 80 characters; a class or module, its kind and how many constants, modules, classes and methods it holds; a method, its summary, the first sentence of its documentation, as YARD's own index shows it. A class or module with nothing to list answers with its kind and the gems it is in.
+A constant shows its value, or its size when longer than a line of 80 characters; a class or module, its kind and how many constants, modules, classes and methods it holds; a method, its summary, the first sentence of its documentation, as YARD's own index shows it. A class or module with nothing to list answers with its documentation, then its kind and the gems it is in.
 
 Run in the same project, `mdri` answers from the documentation yard-md wrote for its bundle, at the versions its `Gemfile.lock` locks, addressed by constant as YARD's `yri` is. It reads the lockfile with Bundler's own parser and starts no process, so neither a call nor a page of a long answer waits on the project's Ruby. Every gem in the bundle answers: a namespace several gems add to (`Rails`) lists them all, and a class a gem reopens (`String`, by activesupport) answers with that gem's methods. It reads the output directory yard-md writes, or the one given after the constant, and writes nothing. It answers from an index yard-md writes beside each gem's pages, so a gem documented by an earlier yard-md does not answer until `yard-md --force` documents it again. `mdri --help` says the same in short.
 

@@ -9,6 +9,7 @@ module YardMd
     SCOPES = {class: ".", instance: "#"}.freeze
     SEPARATOR = "\n\n"
     INLINE = 80
+    CALL_SEQ = /\A\s*:call-seq:.*?(?:\n[ \t]*\n|\z)/m
 
     Entry = Data.define(:text, :group, :names, :detail) do
       def initialize(text:, group: nil, names: [], detail: {})
@@ -30,6 +31,7 @@ module YardMd
       first = 1
       entries.each_with_object({constants: {}, methods: {}}) do |entry, members|
         last = first + entry.text.count("\n")
+        members[:docs] = {lines: [first, last]} if entry.group == :docs
         entry.names.each { |name| members[entry.group][name] = {lines: [first, last], **entry.detail} }
         first = last + SEPARATOR.count("\n")
       end
@@ -41,7 +43,7 @@ module YardMd
       @entries ||= begin
         docs = docs(@object, 1)
         body = [
-          *(Entry.new(text: docs) unless docs.empty?),
+          *(Entry.new(text: docs, group: :docs) unless docs.empty?),
           *constants,
           *SCOPES.keys.flat_map { |scope| attributes(scope) },
           *SCOPES.keys.flat_map { |scope| methods(scope) }
@@ -132,6 +134,7 @@ module YardMd
     def summary(method)
       overloads = method.tags(:overload)
       docstring = (overloads.one? && method.docstring.empty?) ? overloads.first.docstring : method.docstring
+      docstring = YARD::Docstring.new(docstring.sub(CALL_SEQ, "")) if docstring.match?(CALL_SEQ)
       returns = method.tags(:return)
       if docstring.summary.empty? && returns.one? && returns.first.text
         docstring = YARD::Docstring.new(returns.first.text.sub(/\A[a-z]/, &:upcase).strip)
@@ -153,7 +156,7 @@ module YardMd
         next if tags.empty? || (name == :return && returns_nothing?(object, tags))
 
         case name
-        when :example then tags.map { |tag| example(tag) }.join("\n\n")
+        when :example then tags.map { |tag| example(object, tag) }.join("\n\n")
         when :overload then tags.map { |tag| overload(tag, level) }.join("\n\n")
         else listing(YARD::Tags::Library.labels[name], tags, object)
         end
@@ -199,8 +202,8 @@ module YardMd
       @prose.call(tag.text, object, 4).strip.gsub("\n", "\n  ")
     end
 
-    def example(tag)
-      title = tag.name.to_s.empty? ? "Example:" : "Example: #{tag.name}"
+    def example(object, tag)
+      title = tag.name.to_s.empty? ? "Example:" : "Example: #{@prose.call(tag.name, object, 4).strip}"
       "#{title}\n\n```ruby\n#{tag.text.sub(/\A\n+/, "").rstrip}\n```"
     end
 

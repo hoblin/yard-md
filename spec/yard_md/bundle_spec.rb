@@ -78,6 +78,18 @@ RSpec.describe YardMd::Bundle do
       end
     end
 
+    it "removes what a killed run left half-written, and leaves a live run's alone, its own user's or another's" do
+      dead = Process.spawn("true").tap { |pid| Process.wait(pid) }
+      FileUtils.mkdir_p(File.join(cache, "#{described_class::SCRATCH}#{dead}-sample-0.1.0-20261127-#{dead}-abc/docs"))
+      live = [Process.pid, 1].map { |pid| "#{described_class::SCRATCH}#{pid}-other-1.0.0-20261127-#{pid}-abc" }
+      live.each { |name| FileUtils.mkdir_p(File.join(cache, name)) }
+      FileUtils.mkdir_p(File.join(cache, ".unrelated"))
+
+      expect { bundle.document }.to output.to_stdout
+
+      expect(Dir.children(cache)).to contain_exactly("sample-0.1.0", *live, ".unrelated")
+    end
+
     it "skips a gem whose directory already exists" do
       FileUtils.mkdir_p(File.join(cache, "sample-0.1.0"))
 
@@ -224,8 +236,8 @@ RSpec.describe YardMd::Bundle do
     it "reads a gem the lockfile lists for several platforms once" do
       lock("sample (0.1.0)", "sample (0.1.0-x86_64-linux)", "sample (0.1.0-arm64-darwin)")
 
-      expect(bundle.read("Sample::Empty::Inner")).to eq("Sample::Empty::Inner — class in sample 0.1.0, with no constants, classes or methods\n")
-      expect(bundle.read("Sample::Widget#forget")).to eq("### #forget\n\nForgets the widget.\n")
+      expect(bundle.read("Sample::Empty::Inner")).to end_with("\n\nSample::Empty::Inner — class in sample 0.1.0, with no constants, classes or methods\n")
+      expect(bundle.read("Sample::Widget#forget")).to eq("### #forget\n\n```\nforget -> nil\n```\n\nForgets the widget.\n")
     end
 
     it "reads Bundler at the version the lockfile was bundled with, in name order with the rest" do
@@ -234,7 +246,7 @@ RSpec.describe YardMd::Bundle do
       lock("addon (1.0.0)", "sample (0.1.0)", bundled_with: "9.9.9")
 
       expect(bundle.read("Bundler")).to eq("Bundler — module in bundler 9.9.9, with no constants, classes or methods\n")
-      expect(bundle.read("Sample::Empty::Inner")).to eq("Sample::Empty::Inner — class in bundler 9.9.9, sample 0.1.0, with no constants, classes or methods\n")
+      expect(bundle.read("Sample::Empty::Inner")).to end_with("\n\nSample::Empty::Inner — class in bundler 9.9.9, sample 0.1.0, with no constants, classes or methods\n")
     end
 
     it "fails with what it could not read when the project has no lockfile, or a broken one" do
@@ -245,8 +257,13 @@ RSpec.describe YardMd::Bundle do
       expect { bundle.read("Sample") }.to raise_error(YardMd::Error, /merge conflicts/)
     end
 
+    it "answers a class or module with its own documentation from every gem that documents it, gem by gem in name order, then its list" do
+      expect(bundle.read("Sample::Widget")).to start_with("A widget another gem adds to.\n\nA widget with a color.\n\nSample::Widget::FINISHES")
+      expect(bundle.read("Sample")).to start_with("## Sample\n\nA gem documented in RDoc markup").and include("`Sample::Widget`.\n\nSample::LIMITS")
+    end
+
     it "lists a namespace's constants, then its classes and modules from every gem that adds to them, each once with what it holds" do
-      expect(bundle.read("Sample")).to eq(<<~LIST)
+      expect(bundle.read("Sample")).to end_with(<<~LIST)
         Sample::LIMITS — 4 lines
         Sample::VERSION = "0.1.0"
         Sample::Empty — module, 1 class
@@ -257,7 +274,7 @@ RSpec.describe YardMd::Bundle do
     end
 
     it "lists a class's constants, then its methods, attribute accessors and aliases gem by gem in name order, in the order of their pages, each once with its summary" do
-      expect(bundle.read("Sample::Widget").lines(chomp: true)).to eq([
+      expect(bundle.read("Sample::Widget").split("\n\n").last.lines(chomp: true)).to eq([
         "Sample::Widget::FINISHES — 82 characters", "Sample::Widget::SIZES = %i[small large].freeze",
         ".paint — Paints every widget.", "#buff — Buffs the widget with a matching cloth until it shines.",
         "#paint — Paints the widget again.", "#polish — Polishes the widget.", "#scrub — Scrubs the widget, `force` or not.",
@@ -274,14 +291,21 @@ RSpec.describe YardMd::Bundle do
       expect(bundle.read("ADDON_LOADED")).to eq("### ADDON_LOADED = true\n\nWhether the addon is loaded.\n")
     end
 
-    it "answers a class or module it has nothing to list in with its kind and gem" do
-      expect(bundle.read("Sample::Gadget")).to eq("Sample::Gadget — class in addon 1.0.0, with no constants, classes or methods\n")
-      expect(bundle.read("Sample::Empty::Inner")).to eq("Sample::Empty::Inner — class in sample 0.1.0, with no constants, classes or methods\n")
+    it "answers a class or module it has nothing to list in with its documentation, then its kind and gem" do
+      expect(bundle.read("Sample::Gadget")).to eq(<<~ANSWER)
+        A gadget another gem adds to Sample.
+
+        Sample::Gadget — class in addon 1.0.0, with no constants, classes or methods
+      ANSWER
+    end
+
+    it "answers a class or module with no documentation of its own with its list alone" do
+      expect(bundle.read("Sample::Empty")).to eq("Sample::Empty::Inner — class\n")
     end
 
     it "answers a method with its block of the page and nothing else" do
       expect(bundle.read("Sample::Widget.find")).to eq("### .find(color)\n\nFinds a widget by color.\n\nDeprecated: Use `.where` instead.\n")
-      expect(bundle.read("Sample::Widget#forget")).to eq("### #forget\n\nForgets the widget.\n")
+      expect(bundle.read("Sample::Widget#forget")).to eq("### #forget\n\n```\nforget -> nil\n```\n\nForgets the widget.\n")
     end
 
     it "answers a method with the block from every gem that documents it, gem by gem in name order" do
@@ -321,14 +345,14 @@ RSpec.describe YardMd::Bundle do
       FileUtils.mkdir_p(File.join(cache, "stale-1.0.0"))
       lock("absent (1.0.0)", "addon (1.0.0)", "sample (0.1.0)", "stale (1.0.0)")
 
-      expect(bundle.read("Sample::Widget#forget")).to eq("### #forget\n\nForgets the widget.\n")
+      expect(bundle.read("Sample::Widget#forget")).to eq("### #forget\n\n```\nforget -> nil\n```\n\nForgets the widget.\n")
     end
 
     it "answers from the other gems when one was indexed by an earlier yard-md" do
       File.write(File.join(cache, "addon-1.0.0", YardMd::INDEX), JSON.generate("" => {}, "Sample::Widget" => {page: "Sample/Widget.md", methods: {"#polish" => [1, 2]}}))
 
       expect(bundle.read("Sample::Widget#polish")).to be_nil
-      expect(bundle.read("Sample")).to eq(<<~LIST)
+      expect(bundle.read("Sample")).to end_with(<<~LIST)
         Sample::LIMITS — 4 lines
         Sample::VERSION = "0.1.0"
         Sample::Empty — module, 1 class

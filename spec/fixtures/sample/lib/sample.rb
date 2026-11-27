@@ -57,13 +57,20 @@ module Sample
 
     # Paints the widget.
     #
+    # :call-seq:
+    #   paint(color) -> self
+    #
+    # Same as [repainting](rdoc-ref:Sample::Widget#repaint), +hue+[rdoc-ref:Sample::Widget#hue], +shade+[rdoc-ref:Sample::Widget#color],
+    # {coloring}[rdoc-ref:Sample::Widget#color], [+tint+](rdoc-ref:Sample::Widget#color) or Sample[rdoc-ref:Sample].
+    # RDoc writes such a link as <tt>Sample[rdoc-ref:Sample]</tt>.
+    #
     # @param color [Symbol] the new color
     # @param options [Hash] painting options
     # @option options [Boolean] :glossy (false) whether to add gloss
     # @yieldparam previous [Symbol] the color before painting
     # @return [self]
     # @raise [ArgumentError] when the color is unknown
-    # @example Paint it red
+    # @example Paint it +red+
     #
     #   widget.paint(:red) { |previous| puts previous }
     # @see Sample::Widget#color
@@ -88,6 +95,9 @@ module Sample
     def self.find(color)
     end
 
+    # :call-seq:
+    #   forget -> nil
+    #
     # Forgets the widget.
     # @return [void]
     def forget
