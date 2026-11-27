@@ -113,6 +113,6 @@ RSpec.describe "exe/yard-md" do
     expect { out, err, status = yard_md("one", "two") }.not_to change { Dir.glob("**/*", base: @home) }
     expect(status).not_to be_success
     expect(out).to be_empty
-    expect(err).to start_with("Documents a project's gems as Markdown, for people and coding agents to read.\n\nUsage: yard-md [--force] [output dir]\n")
+    expect(err).to eq(yard_md("--help").first)
   end
 end

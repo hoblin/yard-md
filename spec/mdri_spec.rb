@@ -78,7 +78,7 @@ RSpec.describe "exe/mdri" do
       expect { out, err, status = mdri(*args) }.not_to change { Dir.glob("**/*", base: @home) }, args.inspect
       expect(status).not_to be_success, args.inspect
       expect(out).to be_empty
-      expect(err).to start_with("Reads the documentation yard-md wrote for a project's gems, by constant.\n\nUsage: mdri ")
+      expect(err).to eq(mdri("--help").first)
     end
   end
 end
