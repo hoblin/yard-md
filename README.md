@@ -16,7 +16,7 @@ cd my-project
 yard-md
 ```
 
-Run in a project, yard-md documents every gem Bundler resolves for it on this platform, each into `<output dir>/<gem>-<version>/`. The bundle is resolved by the project's own Ruby, through `mise exec` where mise is installed, so one install of yard-md serves projects on any Ruby. The output directory is `$XDG_CACHE_HOME/gem-docs`, or `~/.cache/gem-docs` when that is unset, empty or relative, unless given as the argument: `yard-md docs`. A gem whose directory already exists is skipped, so a second run writes nothing and the output directory is the cache, shared by every project. `yard-md --force` rebuilds the project's gems whose directories exist, for when a newer yard-md writes them differently, and leaves other projects' gems alone.
+Run in a project, yard-md documents every gem Bundler resolves for it on this platform, each into `<output dir>/<gem>-<version>/`. The bundle is resolved by the project's own Ruby through `mise exec` where mise is installed, otherwise by the `ruby` on the PATH; with mise, one install of yard-md serves projects on any Ruby. The output directory is `$XDG_CACHE_HOME/gem-docs`, or `~/.cache/gem-docs` when that is unset, empty or relative, unless given as the argument: `yard-md docs`. A gem whose directory already exists is skipped, so a second run writes nothing and the output directory is the cache, shared by every project. `yard-md --force` rebuilds the project's gems whose directories exist, for when a newer yard-md writes them differently, and leaves other projects' gems alone.
 
 Each gem's directory holds:
 

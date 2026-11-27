@@ -22,8 +22,8 @@ module YardMd
   # Where the documentation goes unless told otherwise.
   CACHE = File.join(cache_home, "gem-docs")
 
-  # The bundle cannot be resolved; the message is the project's own, as
-  # Bundler gave it.
+  # The bundle cannot be resolved; the message is what the project's Ruby, or
+  # mise, printed.
   class Error < StandardError; end
 
   # The file in each gem's directory that {Bundle#read} answers from, beside

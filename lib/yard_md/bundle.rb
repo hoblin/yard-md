@@ -4,8 +4,9 @@ module YardMd
   # The documentation of every gem the current project's bundle resolves on
   # this platform, written as Markdown into one directory per gem version.
   #
-  # The bundle is resolved by the project's own Ruby, through <tt>mise exec</tt>
-  # where mise is installed, so it need not be the Ruby yard-md runs on.
+  # The bundle is resolved by the project's own Ruby through <tt>mise exec</tt>
+  # where mise is installed, otherwise by the +ruby+ on the PATH, so it need not
+  # be the Ruby yard-md runs on. mise installs no missing tool for it.
   #
   # The output directory is a cache: a gem whose <tt><gem>-<version></tt> directory
   # exists is skipped unless forced, and a directory appears only once its gem
@@ -25,27 +26,32 @@ module YardMd
       end
     end
 
-    # Run by the project's Ruby, it prints the bundle's {Spec}s as JSON, or
-    # fails with Bundler's message.
+    # Run by the project's Ruby, it prints the bundle's {Spec}s as JSON on
+    # stdout, and anything the Gemfile prints on stderr; or fails with
+    # Bundler's message.
     # @api private
-    RESOLVE = <<~RUBY
+    RESOLVER = <<~RUBY
       require "bundler"
       require "json"
 
+      $stdout = $stderr
       Bundler.ui = Bundler::UI::Silent.new
       lib = RbConfig::CONFIG["rubylibdir"]
       specs = begin
         Bundler.definition.specs.map do |spec|
-          gem = {name: spec.name, version: spec.version.to_s, path: spec.full_gem_path}
-          next gem unless spec.default_gem?
+          entry = {name: spec.name, version: spec.version.to_s, path: spec.full_gem_path}
+          next entry unless spec.default_gem?
 
-          files = spec.files.map { |file| file.delete_prefix("lib/") }
-          gem.merge(root: lib, files: files.select { |file| file.end_with?(".rb") && File.file?(File.join(lib, file)) })
+          files = spec.files.filter_map do |file|
+            file = file.delete_prefix("lib/")
+            file if file.end_with?(".rb") && File.file?(File.join(lib, file))
+          end
+          entry.merge(root: lib, files: files)
         end
       rescue Bundler::BundlerError => error
         abort error.message
       end
-      puts JSON.generate(specs)
+      STDOUT.puts JSON.generate(specs)
     RUBY
 
     # @param output [String] the directory to write into, created when missing,
@@ -65,10 +71,12 @@ module YardMd
     # traces; the gem still counts as documented.
     #
     # @return [Boolean] whether every gem is documented
-    # @raise [Error] when the bundle cannot be resolved, e.g.
-    #   a gem in it is not installed
+    # @raise [Error] when the bundle cannot be resolved, e.g. a gem in it is not
+    #   installed
     def document
-      specs.tap { FileUtils.mkdir_p(@output) }.map { |spec| build(spec) }.all?
+      resolved = specs
+      FileUtils.mkdir_p(@output)
+      resolved.map { |spec| build(spec) }.all?
     end
 
     # Answers from the documentation {#document} wrote for the bundle's gems, at
@@ -97,14 +105,14 @@ module YardMd
     private
 
     def specs
-      out, err, status = ruby("-e", RESOLVE)
+      out, err, status = ruby("-e", RESOLVER)
       raise Error, err.strip unless status.success?
 
       JSON.parse(out, symbolize_names: true).map { |spec| Spec.new(**spec) }
     end
 
     def ruby(*args)
-      Open3.capture3("mise", "exec", "--", "ruby", *args)
+      Open3.capture3({"MISE_EXEC_AUTO_INSTALL" => "false"}, "mise", "exec", "--", "ruby", *args)
     rescue Errno::ENOENT
       Open3.capture3("ruby", *args)
     end

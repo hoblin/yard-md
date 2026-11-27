@@ -47,6 +47,15 @@ RSpec.describe "exe/yard-md" do
     expect(Dir.children(File.join(output, "sample-0.1.0"))).not_to include("stale.md")
   end
 
+  it "documents the bundle of a Gemfile that prints as it loads" do
+    File.write(File.join(@project, "Gemfile"), %(puts "loading gems"\n#{File.read(File.join(@project, "Gemfile"))}))
+
+    out, err, status = yard_md("docs")
+
+    expect(status).to be_success, err
+    expect(out.lines(chomp: true)).to include("sample-0.1.0")
+  end
+
   it "says in one line why a bundle it cannot resolve stops it" do
     File.write(File.join(@project, "Gemfile"), %(gem "absent", path: "../absent"\n))
 
@@ -85,7 +94,7 @@ RSpec.describe "exe/yard-md" do
 
         expect(status).to be_success, "#{xdg.inspect}: #{err}"
         expect(Dir.children(File.join(@home, ".cache/gem-docs"))).to include("sample-0.1.0")
-        expect(Dir.glob("**/gem-docs", base: @project)).to be_empty
+        expect(Dir.glob("**/*", base: @project).grep_v(%r{\Arelative(/mise(/|\z)|\z)})).to eq(["Gemfile"])
       end
     end
   end

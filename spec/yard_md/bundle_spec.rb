@@ -132,15 +132,17 @@ RSpec.describe YardMd::Bundle do
   describe "resolving the bundle" do
     let(:resolved) { [JSON.generate([sample]), "", instance_double(Process::Status, success?: true)] }
 
-    it "asks the project's Ruby, through mise where mise is installed" do
-      allow(Open3).to receive(:capture3).with("mise", "exec", "--", "ruby", "-e", described_class::RESOLVE).and_return(resolved)
+    it "asks the project's Ruby through mise where mise is installed, letting mise install nothing" do
+      expect(Open3).to receive(:capture3)
+        .with({"MISE_EXEC_AUTO_INSTALL" => "false"}, "mise", "exec", "--", "ruby", "-e", described_class::RESOLVER)
+        .and_return(resolved)
 
       expect { bundle.document }.to output("sample-0.1.0\n").to_stdout
     end
 
     it "asks the Ruby on the PATH where mise is not installed" do
-      allow(Open3).to receive(:capture3).with("mise", any_args).and_raise(Errno::ENOENT)
-      allow(Open3).to receive(:capture3).with("ruby", "-e", described_class::RESOLVE).and_return(resolved)
+      expect(Open3).to receive(:capture3).with(anything, "mise", any_args).and_raise(Errno::ENOENT)
+      expect(Open3).to receive(:capture3).with("ruby", "-e", described_class::RESOLVER).and_return(resolved)
 
       expect { bundle.document }.to output("sample-0.1.0\n").to_stdout
     end
@@ -154,18 +156,20 @@ RSpec.describe YardMd::Bundle do
       expect(File.exist?(cache)).to be(false)
     end
 
-    it "gives a default gem's files in its Ruby's own library directory" do
+    it "gives a default gem's Ruby files in its Ruby's own library directory, and nothing else" do
       allow(Open3).to receive(:capture3).and_call_original
       optparse = Gem::Specification.find { |spec| spec.default_gem? && spec.name == "optparse" }
       out, err, status = Dir.mktmpdir do |project|
         File.write(File.join(project, "Gemfile"), %(gem "optparse", "#{optparse.version}"\n))
-        Bundler.with_unbundled_env { Open3.capture3(RbConfig.ruby, "-e", described_class::RESOLVE, chdir: project) }
+        Bundler.with_unbundled_env { Open3.capture3(RbConfig.ruby, "-e", described_class::RESOLVER, chdir: project) }
       end
+      lib = RbConfig::CONFIG["rubylibdir"]
 
       expect(status).to be_success, err
-      expect(JSON.parse(out, symbolize_names: true)).to include(
-        a_hash_including(name: "optparse", root: RbConfig::CONFIG["rubylibdir"], files: include("optparse.rb", "optparse/time.rb"))
-      )
+      resolved = JSON.parse(out, symbolize_names: true).find { |spec| spec[:name] == "optparse" }
+      expect(resolved[:root]).to eq(lib)
+      expect(resolved[:files]).to include("optparse.rb", "optparse/time.rb")
+        .and all(end_with(".rb").and(satisfy { |file| File.file?(File.join(lib, file)) }))
     end
   end
 
