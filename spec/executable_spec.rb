@@ -125,7 +125,7 @@ RSpec.describe "exe/yard-md" do
 
         expect(status).to be_success, "#{xdg.inspect}: #{err}"
         expect(Dir.children(File.join(@home, ".cache/gem-docs"))).to include("sample-0.1.0")
-        expect(Dir.glob("**/*", base: @project).grep_v(%r{\Arelative(/mise(/|\z)|\z)})).to eq(["Gemfile"])
+        expect(Dir.glob("**/*", base: @project).grep_v(%r{\Arelative(/mise(/|\z)|\z)})).to eq(["Gemfile", "Gemfile.lock"])
       end
     end
   end

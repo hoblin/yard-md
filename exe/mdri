@@ -11,7 +11,7 @@ parser = OptionParser.new(<<~HELP)
   Usage: mdri [--from N] <Constant>[#method|.method] [output dir]
 
   Run in a project. Reads the documentation yard-md wrote into <output dir>
-  for the gems its bundle resolves on this platform, at those versions:
+  for the gems its bundle locks in Gemfile.lock, at those versions:
 
     mdri Faraday                           its documentation, then its constants,
                                            classes, modules and methods
