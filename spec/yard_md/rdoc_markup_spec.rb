@@ -78,9 +78,9 @@ RSpec.describe YardMd::RDocMarkup do
       expect(convert("```\n+x+ *y*\n```")).to eq("```\n+x+ *y*\n```")
     end
 
-    it "turns RDoc links into Markdown links and cross-references into their text" do
-      expect(convert("{the guide}[https://guides.rubyonrails.org] and {find}[rdoc-ref:FinderMethods#find]"))
-        .to eq("[the guide](https://guides.rubyonrails.org) and find")
+    it "turns RDoc links into Markdown links, and leaves cross-references whole for the prose to reduce to their text" do
+      expect(convert("{the guide}[https://guides.rubyonrails.org], {find}[rdoc-ref:FinderMethods#find] and find[rdoc-ref:FinderMethods#find]"))
+        .to eq("[the guide](https://guides.rubyonrails.org), {find}[rdoc-ref:FinderMethods#find] and find[rdoc-ref:FinderMethods#find]")
     end
 
     it "drops the backslash that stops RDoc from cross-referencing" do

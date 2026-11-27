@@ -56,6 +56,37 @@ RSpec.describe "exe/yard-md" do
     expect(out.lines(chomp: true)).to include("sample-0.1.0")
   end
 
+  it "says in one line that it cannot write its output directory" do
+    FileUtils.mkdir_p(output)
+    FileUtils.chmod(0o555, output)
+
+    _, err, status = yard_md("docs")
+
+    expect(status).not_to be_success
+    expect(err.lines.size).to eq(1)
+    expect(err).to start_with("yard-md: Permission denied").and include(output)
+  end
+
+  it "stops quietly on Ctrl-C, leaving no gem half-documented" do
+    err = File.join(@home, "err")
+    pid = Bundler.with_unbundled_env do
+      Process.spawn({"XDG_CACHE_HOME" => File.join(@home, "xdg")}, RbConfig.ruby, *load_path, File.join(root, "exe", "yard-md"), "docs",
+        chdir: @project, pgroup: true, out: File::NULL, err: err)
+    end
+    deadline = Time.now + 30
+    sleep 0.05 until Dir.glob("#{YardMd::Bundle::SCRATCH}*", base: output).any? || Time.now > deadline
+
+    Process.kill("INT", -pid)
+    status = Process.wait2(pid).last
+    pid = nil
+
+    expect(status.exitstatus).to eq(130)
+    expect(File.read(err)).to be_empty
+    expect(Dir.children(output).grep_v(/\A\./)).to all(satisfy { |gem| File.exist?(File.join(output, gem, YardMd::INDEX)) })
+  ensure
+    Process.kill("KILL", -pid) && Process.wait(pid) if pid
+  end
+
   it "says in one line why a bundle it cannot resolve stops it" do
     File.write(File.join(@project, "Gemfile"), %(warn "loading gems"\ngem "absent", path: "../absent"\n))
 

@@ -13,16 +13,17 @@ parser = OptionParser.new(<<~HELP)
   Run in a project. Reads the documentation yard-md wrote into <output dir>
   for the gems its bundle resolves on this platform, at those versions:
 
-    mdri Faraday                   its constants, classes, modules and methods
-    mdri Faraday::Connection#get   that instance method's documentation
-    mdri Faraday.new               that class method's documentation
-    mdri Faraday::VERSION          that constant's value and documentation
+    mdri Faraday                           its documentation, then its constants,
+                                           classes, modules and methods
+    mdri Faraday::Connection#run_request   that instance method's documentation
+    mdri Faraday.new                       that class method's documentation
+    mdri Faraday::VERSION                  that constant's value and documentation
 
   Each line of a list says what lies behind it: a constant's value, or its
   size when longer than a line of 80 characters; a class's or module's kind
   and how many constants, modules, classes and methods it holds; a method's
-  summary. A class or module with nothing to list answers with its kind and
-  the gems it is in.
+  summary. A class or module with nothing to list answers with its
+  documentation, then its kind and the gems it is in.
 
   Every gem in the bundle answers, so a namespace several gems add to lists
   them all, and a class a gem reopens, such as String, answers for that gem.
@@ -55,6 +56,8 @@ parser.on_tail("-v", "--version", "prints the version") do
   exit
 end
 
+trap("INT") { exit 130 }
+
 begin
   options = {}
   address, *output = parser.parse(ARGV, into: options)
@@ -65,6 +68,6 @@ begin
   excerpt = YardMd::Excerpt.new(answer, from).page(Shellwords.join(["mdri", address, *output.map { |directory| File.expand_path(directory) }]))
   abort "mdri: the answer has #{answer.lines.size} lines, fewer than --from #{from}" unless excerpt
   print excerpt
-rescue OptionParser::ParseError, YardMd::Error
+rescue OptionParser::ParseError, YardMd::Error, SystemCallError
   parser.abort
 end
