@@ -88,17 +88,22 @@ RSpec.describe "exe/mdri" do
     expect(out).to eq("Sample::Empty::Inner — class\n")
   end
 
-  it "ends an answer longer than 100 lines with the command for the next, quoted, with the directory it read" do
-    directory = File.join(@project, "my docs", "sample-0.1.0")
-    FileUtils.mkdir_p(directory)
+  it "ends an answer longer than 100 lines with a command that reads the next, from the directory it read" do
+    output = File.join(@project, "-my docs")
+    FileUtils.mkdir_p(File.join(output, "sample-0.1.0"))
     methods = (1..101).to_h { |number| ["#m#{number}", {lines: [1, 1]}] }
-    File.write(File.join(directory, YardMd::INDEX), JSON.generate("" => {kind: "root"}, "Sample" => {kind: "module", methods: methods}))
+    File.write(File.join(output, "sample-0.1.0", YardMd::INDEX), JSON.generate("" => {kind: "root"}, "Sample" => {kind: "module", methods: methods}))
 
-    out, err, status = mdri("Sample", "my docs")
+    out, err, status = mdri("Sample", "--", "-my docs")
 
     expect(status).to be_success, err
     expect(out.lines.size).to eq(101)
-    expect(out.lines.last).to eq("[Showing lines 1–100 of 101. mdri Sample my\\ docs --from 101 for the next.]\n")
+    expect(out.lines.last).to eq("[Showing lines 1–100 of 101. #{Shellwords.join(["mdri", "Sample", output])} --from 101 for the next.]\n")
+
+    out, err, status = mdri(*Shellwords.split(out.lines.last[/\. (mdri .*) for the next/, 1]).drop(1), chdir: output)
+
+    expect(status).to be_success, err
+    expect(out).to eq("#m101\n[Showing lines 101–101 of 101.]\n")
   end
 
   it "rejects a --from that is not a line number" do
